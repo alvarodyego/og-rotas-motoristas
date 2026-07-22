@@ -62,6 +62,17 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .meta { font-size: 0.68rem; color: var(--azul); margin-top: 4px; }
 .parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
 .parada .btn-maps:visited { color: #fff; }
+.parada.status-entregue { border-left: 4px solid #1e7e34; }
+.parada.status-devolucao { border-left: 4px solid #c00000; }
+.parada.status-fechado { border-left: 4px solid #b8860b; }
+.status-botoes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.status-btn { flex: 1; min-width: 84px; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #fff; cursor: pointer; text-align: center; }
+.status-btn.entregue { border: 1.5px solid #1e7e34; color: #1e7e34; }
+.status-btn.devolucao { border: 1.5px solid #c00000; color: #c00000; }
+.status-btn.fechado { border: 1.5px solid #b8860b; color: #b8860b; }
+.status-btn.entregue.ativo { background: #1e7e34; color: #fff; }
+.status-btn.devolucao.ativo { background: #c00000; color: #fff; }
+.status-btn.fechado.ativo { background: #b8860b; color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
 footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
@@ -107,6 +118,28 @@ const PARADAS = {paradas_json};
 const ORIGEM = {origem_json};
 const TRACADO_IDA = {tracado_ida_json};
 const TRACADO_VOLTA = {tracado_volta_json};
+const DATA_ISO = '{data_atual_iso}';
+
+// Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
+// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
+// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
+// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
+// rota de um dia futuro com o mesmo cliente.
+function chaveStatus(codigo) {{
+  return 'status_' + DATA_ISO + '_' + codigo;
+}}
+function lerStatus(codigo) {{
+  return localStorage.getItem(chaveStatus(codigo)) || '';
+}}
+function aplicarStatus(li, status) {{
+  li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
+  li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
+  if (status) {{
+    li.classList.add('status-' + status);
+    const btn = li.querySelector('.status-btn.' + status);
+    if (btn) btn.classList.add('ativo');
+  }}
+}}
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', {{ preferCanvas: true }});
@@ -157,9 +190,27 @@ PARADAS.forEach(p => {{
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
+      '<div class="status-botoes">' +
+        '<div class="status-btn entregue" data-status="entregue">Entregue</div>' +
+        '<div class="status-btn devolucao" data-status="devolucao">Devolucao</div>' +
+        '<div class="status-btn fechado" data-status="fechado">Voltar depois/Fechado</div>' +
+      '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
+  aplicarStatus(li, lerStatus(p.codigo));
+  li.querySelectorAll('.status-btn').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+      const status = btn.dataset.status;
+      const novo = btn.classList.contains('ativo') ? '' : status;
+      if (novo) {{
+        localStorage.setItem(chaveStatus(p.codigo), novo);
+      }} else {{
+        localStorage.removeItem(chaveStatus(p.codigo));
+      }}
+      aplicarStatus(li, novo);
+    }});
+  }});
   pontos.push([p.lat, p.lon]);
   L.marker([p.lat, p.lon], {{ icon: iconeNumerado(p.seq) }})
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
@@ -333,6 +384,7 @@ def _gerar_paginas(
             origem_json=origem_json,
             tracado_ida_json=json.dumps(resultado.tracado_ida),
             tracado_volta_json=json.dumps(resultado.tracado_volta),
+            data_atual_iso=data_atual_iso,
         )
         caminho_rota = os.path.join(rotas_dir, f"{slug}.html")
         with open(caminho_rota, "w", encoding="utf-8") as f:
