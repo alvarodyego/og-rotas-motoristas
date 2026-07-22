@@ -52,6 +52,8 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .cliente { font-weight: bold; font-size: 0.95rem; }
 .parada .endereco { font-size: 0.82rem; color: #444; margin-top: 2px; }
 .parada .meta { font-size: 0.78rem; color: var(--azul); margin-top: 4px; }
+.parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
+.parada .btn-maps:visited { color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
 footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
@@ -129,12 +131,14 @@ PARADAS.forEach(p => {{
   li.className = 'parada';
   const distTxt = (p.dist_proxima_km === null) ? 'ultima parada'
     : ('proxima: ' + p.dist_proxima_km.toFixed(2) + ' km');
+  const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon;
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + distTxt + '</div>' +
+      '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
   pontos.push([p.lat, p.lon]);
