@@ -145,7 +145,9 @@ L.marker([ORIGEM.lat, ORIGEM.lon], {{ icon: iconeOrigem }})
 PARADAS.forEach(p => {{
   const li = document.createElement('li');
   li.className = 'parada';
-  const distTxt = (p.dist_proxima_km === null) ? 'ultima parada'
+  const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
+  const chegadaTxt = 'de ' + origemTxt + ': ' + p.dist_anterior_km.toFixed(2) + ' km';
+  const proximaTxt = (p.dist_proxima_km === null) ? 'ultima parada'
     : ('proxima: ' + p.dist_proxima_km.toFixed(2) + ' km');
   const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon;
   li.innerHTML =
@@ -154,7 +156,7 @@ PARADAS.forEach(p => {{
       '<div class="codigo">' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
-      '<div class="meta">' + distTxt + '</div>' +
+      '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
@@ -261,6 +263,7 @@ def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
             "endereco": p.entrega.endereco,
             "lat": p.entrega.latitude,
             "lon": p.entrega.longitude,
+            "dist_anterior_km": p.distancia_desde_anterior_km,
             "dist_proxima_km": p.distancia_ate_proxima_km,
         }
         for p in resultado.ordem_otimizada
@@ -362,15 +365,20 @@ def _gerar_paginas(
     return arquivos_gerados
 
 
+def _ler_manifest(historico_dir: str) -> list[dict]:
+    caminho = os.path.join(historico_dir, "manifest.json")
+    if not os.path.isfile(caminho):
+        return []
+    with open(caminho, "r", encoding="utf-8") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
+
+
 def _atualizar_manifest(historico_dir: str, data_iso: str, data_br: str, gerado_em: str, total_rotas: int) -> None:
     caminho = os.path.join(historico_dir, "manifest.json")
-    dias = []
-    if os.path.isfile(caminho):
-        with open(caminho, "r", encoding="utf-8") as f:
-            try:
-                dias = json.load(f)
-            except json.JSONDecodeError:
-                dias = []
+    dias = _ler_manifest(historico_dir)
     dias = [d for d in dias if d.get("data") != data_iso]
     dias.append({"data": data_iso, "data_br": data_br, "rotas": total_rotas, "gerado_em": gerado_em})
     dias.sort(key=lambda d: d["data"], reverse=True)
@@ -397,7 +405,14 @@ def gerar_site(
     script rodou. Isso importa quando dois arquivos de dias diferentes sao
     processados no mesmo dia (ex: um atrasado); sem essa distincao, os dois
     cairiam no mesmo dia do historico e um sobrescreveria o outro. Se nao
-    for informada, usa a data de hoje (uso direto/testes)."""
+    for informada, usa a data de hoje (uso direto/testes).
+
+    A pagina "de hoje" (docs/index.html, o link fixo que os motoristas usam)
+    SO e' atualizada se `data_referencia` for a maior data ja vista ate agora
+    (olhando o manifest do historico). Isso evita que, ao processar um
+    arquivo atrasado/antigo depois de um mais recente, a pagina "de hoje"
+    volte a mostrar dados velhos -- ela sempre reflete a data mais nova
+    conhecida, nao "o ultimo arquivo processado"."""
     agora = datetime.now()
     gerado_em = agora.strftime("%d/%m/%Y %H:%M")
     data_ref = data_referencia or agora.date()
@@ -408,19 +423,25 @@ def gerar_site(
     dia_dir = os.path.join(historico_dir, data_iso)
     os.makedirs(historico_dir, exist_ok=True)
 
+    manifest_atual = _ler_manifest(historico_dir)
+    maior_data_existente = max((d.get("data", "") for d in manifest_atual), default="")
+    e_a_mais_recente = data_iso >= maior_data_existente
+
     arquivos_gerados = []
 
-    # Pagina "de hoje": link fixo que nao muda de endereco dia a dia.
-    arquivos_hoje = _gerar_paginas(
-        resultados, docs_dir, origem_lat, origem_lon, gerado_em,
-        titulo_pagina="Cargas otimizadas",
-        manifest_rel="historico/manifest.json",
-        historico_base_rel="historico/",
-        hoje_rel="index.html",
-        data_atual_iso=data_iso,
-        data_atual_br=data_br,
-    )
-    arquivos_gerados.extend(arquivos_hoje)
+    # Pagina "de hoje": link fixo que nao muda de endereco dia a dia. So
+    # atualiza se esta for a data mais recente conhecida (ver docstring).
+    if e_a_mais_recente:
+        arquivos_hoje = _gerar_paginas(
+            resultados, docs_dir, origem_lat, origem_lon, gerado_em,
+            titulo_pagina="Cargas otimizadas",
+            manifest_rel="historico/manifest.json",
+            historico_base_rel="historico/",
+            hoje_rel="index.html",
+            data_atual_iso=data_iso,
+            data_atual_br=data_br,
+        )
+        arquivos_gerados.extend(arquivos_hoje)
 
     # Copia arquivada do dia, para o filtro de data poder consultar depois.
     arquivos_dia = _gerar_paginas(

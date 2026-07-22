@@ -125,7 +125,10 @@ def processar_arquivo(caminho_txt: str, repo_dir: str, origem_lat: float, origem
             f"(OSRM indisponivel no momento): {', '.join(r.rota for r in sem_distancia_real)}")
 
     docs_dir = os.path.join(repo_dir, "docs")
-    gerar_site(resultados, docs_dir, origem_lat, origem_lon, data_referencia=data_ref)
+    arquivos_gerados = gerar_site(resultados, docs_dir, origem_lat, origem_lon, data_referencia=data_ref)
+    if "index.html" not in arquivos_gerados:
+        log(f"  Data {data_ref.strftime('%d/%m/%Y')} e' mais antiga que a mais recente ja processada; "
+            f"so o historico foi atualizado, a pagina 'de hoje' continua na data mais nova.")
 
     nome_arquivo = os.path.basename(caminho_txt)
     _publicar_no_git(repo_dir, f"Atualiza rotas de {data_ref.strftime('%d/%m/%Y')} a partir de {nome_arquivo}")

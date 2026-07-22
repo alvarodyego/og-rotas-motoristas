@@ -55,6 +55,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 class ParadaOtimizada:
     sequencia: int
     entrega: Entrega
+    distancia_desde_anterior_km: float  # da saida (parada 1) ou da parada anterior, ate aqui
     distancia_ate_proxima_km: float | None  # None na ultima parada
 
 
@@ -232,11 +233,18 @@ def otimizar_rota(
 
     paradas: list[ParadaOtimizada] = []
     for pos, idx in enumerate(ordem_indices):
+        anterior = IDX_ORIGEM if pos == 0 else ordem_indices[pos - 1]
+        d_anterior = dist(anterior, idx)
         if pos + 1 < len(ordem_indices):
-            d = dist(idx, ordem_indices[pos + 1])
+            d_proxima = dist(idx, ordem_indices[pos + 1])
         else:
-            d = None
-        paradas.append(ParadaOtimizada(sequencia=pos + 1, entrega=caminho[pos], distancia_ate_proxima_km=d))
+            d_proxima = None
+        paradas.append(ParadaOtimizada(
+            sequencia=pos + 1,
+            entrega=caminho[pos],
+            distancia_desde_anterior_km=d_anterior,
+            distancia_ate_proxima_km=d_proxima,
+        ))
 
     indices_otimizados = [IDX_ORIGEM] + ordem_indices + [IDX_ORIGEM]
     distancia_otimizada = sum(
