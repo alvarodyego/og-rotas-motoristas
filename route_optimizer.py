@@ -64,6 +64,26 @@ def _distancia_total(pontos: list[tuple[float, float]]) -> float:
     return total
 
 
+def _ordem_original(entregas: list[Entrega]) -> list[Entrega]:
+    """Ordem real do plano original do PathFind.
+
+    NAO usa a ordem em que as linhas aparecem no arquivo (essa ordem e'
+    essencialmente arbitraria pro proposito de rota -- na pratica alterna
+    entre bairros/cidades distantes sem nenhum criterio geografico, gerando
+    uma distancia "original" absurdamente inflada). O PathFind grava a
+    sequencia real de visita colada ao codigo do veiculo (ver parsing.py:
+    Entrega.sequencia_original). Aqui so ordenamos por esse numero; entregas
+    sem essa informacao (arquivo em formato diferente) vao para o final,
+    mantendo a ordem relativa entre si.
+    """
+
+    def chave(e: Entrega) -> tuple[int, int]:
+        se = e.sequencia_original
+        return (0, se) if se is not None else (1, 0)
+
+    return sorted(entregas, key=chave)
+
+
 def otimizar_rota(
     rota: str,
     entregas: list[Entrega],
@@ -72,13 +92,14 @@ def otimizar_rota(
 ) -> ResultadoRota:
     """Aplica nearest neighbor (Haversine) a uma rota, partindo da coordenada
     de saida do caminhao e voltando a ela no final, e compara com o plano
-    original (ordem em que as entregas aparecem no relatorio do PathFind)."""
+    original (a sequencia de visita que o proprio PathFind calculou)."""
     if not entregas:
         return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0)
 
     origem = (origem_lat, origem_lon)
 
-    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in entregas] + [origem]
+    ordem_original = _ordem_original(entregas)
+    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in ordem_original] + [origem]
     distancia_original = _distancia_total(pontos_originais)
 
     restantes = list(entregas)

@@ -29,6 +29,7 @@ class Entrega:
     hora_duracao_parada: str
     hora_entrega_original: str
     endereco: str
+    sequencia_original: int | None = None  # posicao da parada no plano original do PathFind
     linha_origem: int = field(repr=False, default=0)
 
 
@@ -139,12 +140,20 @@ def parse_linha(linha: str, numero_linha: int = 0) -> Entrega | None:
 
     # veiculo: primeiro token apos "RT......." e antes do bloco de datas
     # duplicadas (AAAA-MM-DDAAAA-MM-DD). O formato de placa observado tem
-    # sempre 8 caracteres (ex: TVA-5A26); o restante colado ao token e o
-    # numero de sequencia da parada no plano original, que descartamos aqui
-    # pois nao faz parte dos campos pedidos.
+    # sempre 8 caracteres (ex: TVA-5A26); o restante colado ao token e a
+    # sequencia da parada no plano original do PathFind, no formato "1<N>"
+    # (um digito fixo + o numero da parada, ex: "115" = parada 15, "1"+"1"
+    # = parada 1). Confirmado batendo com o numero de paradas de varias
+    # rotas reais (sempre forma um intervalo 1..N sem buracos ou repeticao).
     veic_m = re.search(r"(\S+?)\s+\d{4}-\d{2}-\d{2}\d{4}-\d{2}-\d{2}", linha[rota_m.end():])
     veiculo = veic_m.group(1)[:8] if veic_m else ""
     fim_datas = rota_m.end() + veic_m.end() if veic_m else rota_m.end()
+
+    sequencia_original = None
+    if veic_m:
+        sufixo = veic_m.group(1)[8:]
+        if len(sufixo) >= 2 and sufixo.isdigit():
+            sequencia_original = int(sufixo[1:])
 
     cliente_m = _CLIENTE_RE.search(linha, pos=fim_datas)
     cliente = cliente_m.group(1).strip() if cliente_m else ""
@@ -187,6 +196,7 @@ def parse_linha(linha: str, numero_linha: int = 0) -> Entrega | None:
         hora_duracao_parada=hora_duracao_parada,
         hora_entrega_original=hora_entrega_original,
         endereco=endereco,
+        sequencia_original=sequencia_original,
         linha_origem=numero_linha,
     )
 
