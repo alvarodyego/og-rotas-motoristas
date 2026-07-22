@@ -3,16 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
 <title>TVA-4H02 - Sem motorista definido - Rota de entrega</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 :root { --azul: #1f4e78; --azul-claro: #eaf1f8; --texto: #1a1a1a; --borda: #d9dfe6; }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--texto); background: #f4f6f8; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--texto); background: #f4f6f8; -webkit-tap-highlight-color: transparent; animation: entrada 0.15s ease-out; }
+@keyframes entrada { from { opacity: 0; } to { opacity: 1; } }
 header { background: var(--azul); color: #fff; padding: 12px 16px; }
 header h1 { margin: 0; font-size: 1.1rem; }
-header .sub { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
-.aviso { background: #fff3cd; color: #664d03; font-size: 0.8rem; padding: 8px 16px; border-bottom: 1px solid #ffe69c; }
+header .marca { font-size: 0.75rem; opacity: 0.9; margin-top: 3px; }
+header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
 .filtro-data label { font-size: 0.85rem; }
 .filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
@@ -41,9 +46,9 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <body>
 <header>
   <h1>TVA-4H02 - Sem motorista definido</h1>
-  <div class="sub">Atualizado em 22/07/2026 14:29</div>
+  <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
+  <div class="sub">Atualizado em 22/07/2026 14:36</div>
 </header>
-<div class="aviso">Sequencia calculada apenas por proximidade geografica (vizinho mais proximo / Haversine). NAO considera janela de horario nem prazo de entrega combinado com o cliente.</div>
 <div class="resumo">
   <span>Distancia original (ida e volta): <b>30.92 km</b></span>
   <span>Distancia otimizada (ida e volta): <b>27.02 km</b></span>
@@ -63,9 +68,11 @@ const PARADAS = [{"seq": 1, "cliente": "CHACARA RANCHO VERDE", "endereco": "RUA 
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 
 const listaEl = document.getElementById('listaParadas');
-const mapa = L.map('mapa');
+const mapa = L.map('mapa', { preferCanvas: true });
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
+  updateWhenZooming: false,
+  keepBuffer: 3,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(mapa);
 

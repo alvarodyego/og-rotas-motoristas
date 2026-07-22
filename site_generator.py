@@ -23,20 +23,24 @@ from datetime import datetime
 
 from route_optimizer import ResultadoRota
 
-AVISO_OTIMIZACAO = (
-    "Sequencia calculada apenas por proximidade geografica (vizinho mais "
-    "proximo / Haversine). NAO considera janela de horario nem prazo de "
-    "entrega combinado com o cliente."
-)
+# Nota interna (nao exibida na pagina): o algoritmo de otimizacao usa apenas
+# distancia geografica (Haversine + vizinho mais proximo) e NAO considera
+# janela de horario nem prazo de entrega combinado com o cliente. Ver
+# route_optimizer.py para detalhes -- essa limitacao continua valendo mesmo
+# sem o aviso aparecer para o motorista.
+
+MARCA = "Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken"
 
 _ESTILO = """
 :root { --azul: #1f4e78; --azul-claro: #eaf1f8; --texto: #1a1a1a; --borda: #d9dfe6; }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--texto); background: #f4f6f8; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: var(--texto); background: #f4f6f8; -webkit-tap-highlight-color: transparent; animation: entrada 0.15s ease-out; }
+@keyframes entrada { from { opacity: 0; } to { opacity: 1; } }
 header { background: var(--azul); color: #fff; padding: 12px 16px; }
 header h1 { margin: 0; font-size: 1.1rem; }
-header .sub { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
-.aviso { background: #fff3cd; color: #664d03; font-size: 0.8rem; padding: 8px 16px; border-bottom: 1px solid #ffe69c; }
+header .marca { font-size: 0.75rem; opacity: 0.9; margin-top: 3px; }
+header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
 .filtro-data label { font-size: 0.85rem; }
 .filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
@@ -67,16 +71,19 @@ _ROTA_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
 <title>{rotulo} - Rota de entrega</title>
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>{estilo}</style>
 </head>
 <body>
 <header>
   <h1>{rotulo}</h1>
+  <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
-<div class="aviso">{aviso}</div>
 <div class="resumo">
   <span>Distancia original (ida e volta): <b>{dist_original:.2f} km</b></span>
   <span>Distancia otimizada (ida e volta): <b>{dist_otimizada:.2f} km</b></span>
@@ -96,9 +103,11 @@ const PARADAS = {paradas_json};
 const ORIGEM = {origem_json};
 
 const listaEl = document.getElementById('listaParadas');
-const mapa = L.map('mapa');
+const mapa = L.map('mapa', {{ preferCanvas: true }});
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   maxZoom: 19,
+  updateWhenZooming: false,
+  keepBuffer: 3,
   attribution: '&copy; OpenStreetMap contributors'
 }}).addTo(mapa);
 
@@ -166,15 +175,16 @@ _INDEX_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
 <title>{titulo_pagina} - PathFind</title>
 <style>{estilo}</style>
 </head>
 <body>
 <header>
   <h1>{titulo_pagina}</h1>
+  <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
-<div class="aviso">{aviso}</div>
 <div class="filtro-data">
   <label for="seletorData">Ver rotas de:</label>
   <select id="seletorData"><option value="{data_atual_iso}">{data_atual_br} (hoje)</option></select>
@@ -288,8 +298,8 @@ def _gerar_paginas(
         html_rota = _ROTA_TEMPLATE.format(
             rotulo=rotulo,
             estilo=_ESTILO,
+            marca=MARCA,
             gerado_em=gerado_em,
-            aviso=AVISO_OTIMIZACAO,
             dist_original=resultado.distancia_total_original_km,
             dist_otimizada=resultado.distancia_total_otimizada_km,
             economia_km=resultado.economia_km,
@@ -312,8 +322,8 @@ def _gerar_paginas(
 
     html_index = _INDEX_TEMPLATE.format(
         estilo=_ESTILO,
+        marca=MARCA,
         gerado_em=gerado_em,
-        aviso=AVISO_OTIMIZACAO,
         titulo_pagina=titulo_pagina,
         itens="\n    ".join(itens_index),
         manifest_rel=manifest_rel,
