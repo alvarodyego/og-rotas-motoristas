@@ -39,6 +39,17 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .meta { font-size: 0.68rem; color: var(--azul); margin-top: 4px; }
 .parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
 .parada .btn-maps:visited { color: #fff; }
+.parada.status-entregue { border-left: 4px solid #1e7e34; }
+.parada.status-devolucao { border-left: 4px solid #c00000; }
+.parada.status-fechado { border-left: 4px solid #b8860b; }
+.status-botoes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.status-btn { flex: 1; min-width: 84px; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #fff; cursor: pointer; text-align: center; }
+.status-btn.entregue { border: 1.5px solid #1e7e34; color: #1e7e34; }
+.status-btn.devolucao { border: 1.5px solid #c00000; color: #c00000; }
+.status-btn.fechado { border: 1.5px solid #b8860b; color: #b8860b; }
+.status-btn.entregue.ativo { background: #1e7e34; color: #fff; }
+.status-btn.devolucao.ativo { background: #c00000; color: #fff; }
+.status-btn.fechado.ativo { background: #b8860b; color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
 footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
@@ -51,7 +62,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>RMB-6G45 - Motorista 724</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:43</div>
+  <div class="sub">Atualizado em 22/07/2026 16:02</div>
 </header>
 <div id="mapa"></div>
 <main>
@@ -72,6 +83,28 @@ const PARADAS = [{"seq": 1, "codigo": "01002758", "cliente": "CONV IPANEMA 2", "
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208208, -48.234595], [-7.203712, -48.223746], [-7.201798, -48.21526], [-7.202998, -48.206099], [-7.202821, -48.202811], [-7.198527, -48.194127], [-7.198699, -48.192889], [-7.197916, -48.193075], [-7.198703, -48.192986], [-7.198349, -48.19089], [-7.199146, -48.188522], [-7.198037, -48.188432], [-7.197608, -48.188097], [-7.196491, -48.189526], [-7.197037, -48.189891], [-7.195048, -48.188403], [-7.195464, -48.188736], [-7.193713, -48.191002], [-7.193092, -48.190502], [-7.193008, -48.187838], [-7.193884, -48.185932], [-7.194057, -48.18545], [-7.19371, -48.184946], [-7.194352, -48.184039], [-7.194452, -48.185098], [-7.194142, -48.185554], [-7.192013, -48.182529], [-7.192531, -48.181744], [-7.193824, -48.183243], [-7.195463, -48.181673], [-7.196464, -48.18062], [-7.197126, -48.181232], [-7.198128, -48.180066], [-7.199745, -48.180406], [-7.199362, -48.182002], [-7.1988, -48.182133], [-7.197479, -48.183786], [-7.197826, -48.184051], [-7.199799, -48.185554], [-7.200466, -48.185285], [-7.201504, -48.183056], [-7.201356, -48.182325], [-7.200931, -48.18201], [-7.201529, -48.181216], [-7.202655, -48.182082], [-7.202736, -48.182143], [-7.20342, -48.181522], [-7.203318, -48.182032], [-7.203203, -48.182178], [-7.199861, -48.180424], [-7.201017, -48.177852], [-7.200529, -48.178336], [-7.200536, -48.176886], [-7.201148, -48.177186], [-7.200644, -48.178336], [-7.197867, -48.178339], [-7.197918, -48.174627], [-7.19796, -48.171554], [-7.202333, -48.171562], [-7.202476, -48.173967], [-7.199745, -48.180406], [-7.19726, -48.179793], [-7.188517, -48.187691], [-7.19726, -48.179793], [-7.200631, -48.180557], [-7.202847, -48.182226], [-7.213355, -48.169196], [-7.221209, -48.164911], [-7.246384, -48.147789]];
 const TRACADO_VOLTA = [[-7.246384, -48.147789], [-7.221209, -48.164911], [-7.213355, -48.169196], [-7.198715, -48.18798], [-7.197661, -48.19039], [-7.19804, -48.193477], [-7.202763, -48.203333], [-7.201754, -48.215578], [-7.204045, -48.225145], [-7.208184, -48.235024], [-7.207592, -48.239863], [-7.207057, -48.241057], [-7.205925, -48.241098], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.22693, -48.250414]];
+const DATA_ISO = '2026-07-22';
+
+// Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
+// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
+// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
+// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
+// rota de um dia futuro com o mesmo cliente.
+function chaveStatus(codigo) {
+  return 'status_' + DATA_ISO + '_' + codigo;
+}
+function lerStatus(codigo) {
+  return localStorage.getItem(chaveStatus(codigo)) || '';
+}
+function aplicarStatus(li, status) {
+  li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
+  li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
+  if (status) {
+    li.classList.add('status-' + status);
+    const btn = li.querySelector('.status-btn.' + status);
+    if (btn) btn.classList.add('ativo');
+  }
+}
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', { preferCanvas: true });
@@ -122,9 +155,27 @@ PARADAS.forEach(p => {
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
+      '<div class="status-botoes">' +
+        '<div class="status-btn entregue" data-status="entregue">Entregue</div>' +
+        '<div class="status-btn devolucao" data-status="devolucao">Devolucao</div>' +
+        '<div class="status-btn fechado" data-status="fechado">Voltar depois/Fechado</div>' +
+      '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
+  aplicarStatus(li, lerStatus(p.codigo));
+  li.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.dataset.status;
+      const novo = btn.classList.contains('ativo') ? '' : status;
+      if (novo) {
+        localStorage.setItem(chaveStatus(p.codigo), novo);
+      } else {
+        localStorage.removeItem(chaveStatus(p.codigo));
+      }
+      aplicarStatus(li, novo);
+    });
+  });
   pontos.push([p.lat, p.lon]);
   L.marker([p.lat, p.lon], { icon: iconeNumerado(p.seq) })
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
