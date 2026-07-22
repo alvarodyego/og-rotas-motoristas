@@ -51,7 +51,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>TVA-6H37 - Motorista 726</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:33</div>
+  <div class="sub">Atualizado em 22/07/2026 15:42</div>
 </header>
 <div id="mapa"></div>
 <main>
@@ -68,7 +68,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01001215", "cliente": "DISTRIBUI ON LINE", "endereco": "RUA PERIMETRAL SUL QD 02 LT 01 S/NLOTEAMENTO MARACANAARAGUAINATO - LOTEAMENTO MARACANA - ARAGUAINA/TO - CEP 77825610", "lat": -7.162726, "lon": -48.191233, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01001215", "cliente": "DISTRIBUI ON LINE", "endereco": "RUA PERIMETRAL SUL QD 02 LT 01 S/NLOTEAMENTO MARACANAARAGUAINATO - LOTEAMENTO MARACANA - ARAGUAINA/TO - CEP 77825610", "lat": -7.162726, "lon": -48.191233, "dist_anterior_km": 11.2648, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.188907, -48.23233], [-7.16197, -48.205477], [-7.162744, -48.201596], [-7.159159, -48.200951], [-7.158229, -48.192354], [-7.162729, -48.19186], [-7.162672, -48.191238]];
 const TRACADO_VOLTA = [[-7.162672, -48.191238], [-7.162729, -48.19186], [-7.158087, -48.19238], [-7.15902, -48.200936], [-7.162744, -48.201596], [-7.161612, -48.205923], [-7.188577, -48.232171], [-7.205925, -48.241098], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.22693, -48.250414]];
@@ -110,7 +110,9 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 PARADAS.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
-  const distTxt = (p.dist_proxima_km === null) ? 'ultima parada'
+  const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
+  const chegadaTxt = 'de ' + origemTxt + ': ' + p.dist_anterior_km.toFixed(2) + ' km';
+  const proximaTxt = (p.dist_proxima_km === null) ? 'ultima parada'
     : ('proxima: ' + p.dist_proxima_km.toFixed(2) + ' km');
   const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon;
   li.innerHTML =
@@ -119,7 +121,7 @@ PARADAS.forEach(p => {
       '<div class="codigo">' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
-      '<div class="meta">' + distTxt + '</div>' +
+      '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
