@@ -125,19 +125,24 @@ const DATA_ISO = '{data_atual_iso}';
 // nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
 // inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
 // rota de um dia futuro com o mesmo cliente.
+const CORES_STATUS = {{ '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' }};
+
 function chaveStatus(codigo) {{
   return 'status_' + DATA_ISO + '_' + codigo;
 }}
 function lerStatus(codigo) {{
   return localStorage.getItem(chaveStatus(codigo)) || '';
 }}
-function aplicarStatus(li, status) {{
+function aplicarStatus(li, status, marker, numero) {{
   li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
   li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
   if (status) {{
     li.classList.add('status-' + status);
     const btn = li.querySelector('.status-btn.' + status);
     if (btn) btn.classList.add('ativo');
+  }}
+  if (marker) {{
+    marker.setIcon(iconeNumerado(numero, CORES_STATUS[status] || CORES_STATUS['']));
   }}
 }}
 
@@ -150,10 +155,11 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   attribution: '&copy; OpenStreetMap contributors'
 }}).addTo(mapa);
 
-function iconeNumerado(numero) {{
+function iconeNumerado(numero, cor) {{
+  cor = cor || '#1f4e78';
   return L.divIcon({{
     className: 'icone-parada',
-    html: '<div style="background:#1f4e78;color:#fff;border-radius:50%;width:26px;height:26px;' +
+    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
           'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
           'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
     iconSize: [26, 26],
@@ -198,7 +204,12 @@ PARADAS.forEach(p => {{
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
-  aplicarStatus(li, lerStatus(p.codigo));
+  pontos.push([p.lat, p.lon]);
+  const statusInicial = lerStatus(p.codigo);
+  const marker = L.marker([p.lat, p.lon], {{ icon: iconeNumerado(p.seq, CORES_STATUS[statusInicial]) }})
+    .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
+    .addTo(mapa);
+  aplicarStatus(li, statusInicial, marker, p.seq);
   li.querySelectorAll('.status-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{
       const status = btn.dataset.status;
@@ -208,13 +219,9 @@ PARADAS.forEach(p => {{
       }} else {{
         localStorage.removeItem(chaveStatus(p.codigo));
       }}
-      aplicarStatus(li, novo);
+      aplicarStatus(li, novo, marker, p.seq);
     }});
   }});
-  pontos.push([p.lat, p.lon]);
-  L.marker([p.lat, p.lon], {{ icon: iconeNumerado(p.seq) }})
-    .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
-    .addTo(mapa);
 }});
 if (pontos.length > 1) {{
   // TRACADO_IDA/TRACADO_VOLTA vem do OSRM (segue as ruas de verdade). Se o
