@@ -1,28 +1,49 @@
 """
 Otimizacao de sequencia de entrega por proximidade geografica.
 
-AVISO IMPORTANTE: este algoritmo otimiza SOMENTE por distancia geografica
-(nearest neighbor sobre distancia real de Haversine), partindo da coordenada
-fixa de saida do caminhao. Ele NAO considera janela de horario, prazo de
-entrega combinado com o cliente, prioridade de cliente, capacidade do
-veiculo por trecho, nem transito. Se a operacao precisar respeitar horarios
-de entrega combinados, essa restricao precisa ser adicionada depois (ex:
-nearest neighbor com janela de tempo, ou um solver de VRPTW). Use o
-resultado como um ponto de partida geografico, nao como a rota final se
-houver compromissos de horario com os clientes.
+AVISO IMPORTANTE: este algoritmo otimiza SOMENTE por distancia (nearest
+neighbor sobre a distancia real de estrada, nao linha reta -- ver mais
+abaixo), partindo da coordenada fixa de saida do caminhao. Ele NAO considera
+janela de horario, prazo de entrega combinado com o cliente, prioridade de
+cliente, capacidade do veiculo por trecho, nem transito em tempo real. Se a
+operacao precisar respeitar horarios de entrega combinados, essa restricao
+precisa ser adicionada depois (ex: nearest neighbor com janela de tempo, ou
+um solver de VRPTW). Use o resultado como um ponto de partida geografico,
+nao como a rota final se houver compromissos de horario com os clientes.
+
+DISTANCIA REAL DE ESTRADA, NAO LINHA RETA:
+As distancias sao calculadas pela malha viaria de verdade usando o OSRM
+(Open Source Routing Machine, http://project-osrm.org), atraves do servidor
+de demonstracao publico e gratuito (router.project-osrm.org). Isso exige
+conexao com a internet. Se o servico estiver fora do ar ou sem resposta, o
+sistema cai automaticamente para distancia em linha reta (Haversine) so
+para nao travar a geracao da rota -- mas o resultado nesse caso fica menos
+preciso, e isso e' registrado no log do watcher.
+
+O servidor publico do OSRM e' um servico de demonstracao, sem garantia de
+disponibilidade para uso comercial pesado. Para uso serio e continuo, o
+recomendado e' rodar uma instancia propria do OSRM (self-hosted) ou usar um
+servico pago de matriz de distancias (Google, Mapbox, HERE).
 """
 from __future__ import annotations
 
+import json
 import math
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 
 from parsing import Entrega
 
 RAIO_TERRA_KM = 6371.0
+OSRM_BASE_URL = "https://router.project-osrm.org"
+OSRM_TIMEOUT_SEGUNDOS = 20
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Distancia real (em km) entre duas coordenadas, considerando a curvatura da Terra."""
+    """Distancia em linha reta (em km), considerando a curvatura da Terra.
+    Usada apenas como reserva (fallback) quando o OSRM nao responde -- nao e'
+    a distancia principal do sistema, que e' a de estrada (ver _matriz_osrm)."""
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
@@ -45,6 +66,7 @@ class ResultadoRota:
     distancia_retorno_km: float  # ultima parada de volta ate o ponto de partida (ordem otimizada)
     distancia_total_original_km: float  # ida (saida->1a...ultima) + volta, na ordem original do plano
     distancia_total_otimizada_km: float  # ida (saida->1a...ultima) + volta, na ordem otimizada
+    usou_distancia_real: bool  # False se caiu para linha reta por falha do OSRM
 
     @property
     def economia_km(self) -> float:
@@ -55,13 +77,6 @@ class ResultadoRota:
         if self.distancia_total_original_km == 0:
             return 0.0
         return (self.economia_km / self.distancia_total_original_km) * 100
-
-
-def _distancia_total(pontos: list[tuple[float, float]]) -> float:
-    total = 0.0
-    for (lat1, lon1), (lat2, lon2) in zip(pontos, pontos[1:]):
-        total += haversine_km(lat1, lon1, lat2, lon2)
-    return total
 
 
 def _ordem_original(entregas: list[Entrega]) -> list[Entrega]:
@@ -84,56 +99,122 @@ def _ordem_original(entregas: list[Entrega]) -> list[Entrega]:
     return sorted(entregas, key=chave)
 
 
+def _matriz_haversine(pontos: list[tuple[float, float]]) -> list[list[float]]:
+    n = len(pontos)
+    matriz = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                matriz[i][j] = haversine_km(*pontos[i], *pontos[j])
+    return matriz
+
+
+def _matriz_osrm(pontos: list[tuple[float, float]]) -> list[list[float]] | None:
+    """Pede ao OSRM a matriz de distancia REAL DE ESTRADA (em km) entre todos
+    os pontos de uma vez (1 requisicao HTTP por rota, nao uma por par).
+    Retorna None se o servico falhar por qualquer motivo -- quem chamar deve
+    cair para _matriz_haversine nesse caso."""
+    # OSRM espera "longitude,latitude" (invertido em relacao a como guardamos
+    # nossas coordenadas).
+    coords = ";".join(f"{lon},{lat}" for lat, lon in pontos)
+    url = f"{OSRM_BASE_URL}/table/v1/driving/{coords}?annotations=distance"
+    try:
+        with urllib.request.urlopen(url, timeout=OSRM_TIMEOUT_SEGUNDOS) as resp:
+            dados = json.load(resp)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return None
+
+    if dados.get("code") != "Ok":
+        return None
+    distancias_m = dados.get("distances")
+    if not distancias_m:
+        return None
+
+    n = len(pontos)
+    matriz = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            valor = distancias_m[i][j]
+            if valor is None:
+                # Par sem rota conhecida pelo OSRM (raro): usa linha reta so
+                # para esse par especifico, sem descartar o resto da matriz.
+                matriz[i][j] = haversine_km(*pontos[i], *pontos[j])
+            else:
+                matriz[i][j] = valor / 1000.0
+    return matriz
+
+
+def obter_matriz_distancias(pontos: list[tuple[float, float]]) -> tuple[list[list[float]], bool]:
+    """Matriz de distancia (em km) entre todos os pontos, por estrada de
+    verdade via OSRM. Cai para linha reta (Haversine) se o OSRM falhar.
+    Retorna (matriz, usou_distancia_real)."""
+    matriz = _matriz_osrm(pontos)
+    if matriz is not None:
+        return matriz, True
+    return _matriz_haversine(pontos), False
+
+
 def otimizar_rota(
     rota: str,
     entregas: list[Entrega],
     origem_lat: float,
     origem_lon: float,
 ) -> ResultadoRota:
-    """Aplica nearest neighbor (Haversine) a uma rota, partindo da coordenada
-    de saida do caminhao e voltando a ela no final, e compara com o plano
-    original (a sequencia de visita que o proprio PathFind calculou)."""
+    """Aplica nearest neighbor (sobre distancia real de estrada, via OSRM) a
+    uma rota, partindo da coordenada de saida do caminhao e voltando a ela no
+    final, e compara com o plano original (a sequencia de visita que o
+    proprio PathFind calculou)."""
     if not entregas:
-        return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0)
+        return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0, True)
 
-    origem = (origem_lat, origem_lon)
+    # indice 0 = origem; indices 1..N = entregas, na mesma ordem da lista
+    # recebida (a otimizacao trabalha com indices para nao perder a
+    # correspondencia com a matriz).
+    pontos = [(origem_lat, origem_lon)] + [(e.latitude, e.longitude) for e in entregas]
+    matriz, usou_distancia_real = obter_matriz_distancias(pontos)
 
+    IDX_ORIGEM = 0
+
+    def dist(i: int, j: int) -> float:
+        return matriz[i][j]
+
+    # --- distancia na ordem ORIGINAL (sequencia real do PathFind) ---
     ordem_original = _ordem_original(entregas)
-    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in ordem_original] + [origem]
-    distancia_original = _distancia_total(pontos_originais)
+    indice_por_entrega = {id(e): i + 1 for i, e in enumerate(entregas)}
+    indices_originais = [IDX_ORIGEM] + [indice_por_entrega[id(e)] for e in ordem_original] + [IDX_ORIGEM]
+    distancia_original = sum(
+        dist(a, b) for a, b in zip(indices_originais, indices_originais[1:])
+    )
 
-    restantes = list(entregas)
-    atual_lat, atual_lon = origem_lat, origem_lon
-    caminho: list[Entrega] = []
+    # --- nearest neighbor sobre a matriz real, partindo da origem ---
+    restantes = set(range(1, len(entregas) + 1))
+    atual = IDX_ORIGEM
+    ordem_indices: list[int] = []
     while restantes:
-        proximo = min(
-            restantes,
-            key=lambda e: haversine_km(atual_lat, atual_lon, e.latitude, e.longitude),
-        )
+        proximo = min(restantes, key=lambda j: dist(atual, j))
         restantes.remove(proximo)
-        caminho.append(proximo)
-        atual_lat, atual_lon = proximo.latitude, proximo.longitude
+        ordem_indices.append(proximo)
+        atual = proximo
 
-    distancia_origem_primeira = haversine_km(
-        origem_lat, origem_lon, caminho[0].latitude, caminho[0].longitude
-    )
-    distancia_retorno = haversine_km(
-        caminho[-1].latitude, caminho[-1].longitude, origem_lat, origem_lon
-    )
+    caminho = [entregas[i - 1] for i in ordem_indices]
+
+    distancia_origem_primeira = dist(IDX_ORIGEM, ordem_indices[0])
+    distancia_retorno = dist(ordem_indices[-1], IDX_ORIGEM)
 
     paradas: list[ParadaOtimizada] = []
-    for i, entrega in enumerate(caminho):
-        if i + 1 < len(caminho):
-            dist = haversine_km(
-                entrega.latitude, entrega.longitude,
-                caminho[i + 1].latitude, caminho[i + 1].longitude,
-            )
+    for pos, idx in enumerate(ordem_indices):
+        if pos + 1 < len(ordem_indices):
+            d = dist(idx, ordem_indices[pos + 1])
         else:
-            dist = None
-        paradas.append(ParadaOtimizada(sequencia=i + 1, entrega=entrega, distancia_ate_proxima_km=dist))
+            d = None
+        paradas.append(ParadaOtimizada(sequencia=pos + 1, entrega=caminho[pos], distancia_ate_proxima_km=d))
 
-    pontos_otimizados = [origem] + [(e.latitude, e.longitude) for e in caminho] + [origem]
-    distancia_otimizada = _distancia_total(pontos_otimizados)
+    indices_otimizados = [IDX_ORIGEM] + ordem_indices + [IDX_ORIGEM]
+    distancia_otimizada = sum(
+        dist(a, b) for a, b in zip(indices_otimizados, indices_otimizados[1:])
+    )
 
     return ResultadoRota(
         rota=rota,
@@ -142,6 +223,7 @@ def otimizar_rota(
         distancia_retorno_km=distancia_retorno,
         distancia_total_original_km=distancia_original,
         distancia_total_otimizada_km=distancia_otimizada,
+        usou_distancia_real=usou_distancia_real,
     )
 
 

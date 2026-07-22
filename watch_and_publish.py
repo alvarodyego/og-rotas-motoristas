@@ -92,6 +92,11 @@ def processar_arquivo(caminho_txt: str, repo_dir: str, origem_lat: float, origem
     log(f"  {len(rotas)} rota(s) / {total} entrega(s).")
 
     resultados = otimizar_todas(rotas, origem_lat, origem_lon)
+    sem_distancia_real = [r for r in resultados.values() if not r.usou_distancia_real]
+    if sem_distancia_real:
+        log(f"  AVISO: {len(sem_distancia_real)} rota(s) caiu(ram) para distancia em linha reta "
+            f"(OSRM indisponivel no momento): {', '.join(r.rota for r in sem_distancia_real)}")
+
     docs_dir = os.path.join(repo_dir, "docs")
     gerar_site(resultados, docs_dir, origem_lat, origem_lon)
 

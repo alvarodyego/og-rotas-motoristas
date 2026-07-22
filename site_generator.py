@@ -45,6 +45,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data label { font-size: 0.85rem; }
 .filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
+.aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
 .resumo { font-size: 0.85rem; padding: 8px 16px; background: var(--azul-claro); display: flex; gap: 16px; flex-wrap: wrap; }
 .resumo b { color: var(--azul); }
 #mapa { width: 100%; height: 42vh; min-height: 260px; }
@@ -84,7 +85,7 @@ _ROTA_TEMPLATE = """<!doctype html>
   <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
-<div class="resumo">
+{aviso_linha_reta}<div class="resumo">
   <span>Distancia original (ida e volta): <b>{dist_original:.2f} km</b></span>
   <span>Distancia otimizada (ida e volta): <b>{dist_otimizada:.2f} km</b></span>
   <span>Economia: <b>{economia_km:.2f} km ({economia_pct:.1f}%)</b></span>
@@ -295,11 +296,18 @@ def _gerar_paginas(
         slug = slug_base if contagem == 0 else f"{slug_base}-{contagem + 1}"
         paradas = _resultado_para_paradas(resultado)
 
+        aviso_linha_reta = (
+            '<div class="aviso-linha-reta">Nao foi possivel calcular a distancia real de '
+            'estrada agora (servico indisponivel); os valores abaixo sao em linha reta, '
+            'menos precisos que o normal.</div>\n'
+        ) if not resultado.usou_distancia_real else ""
+
         html_rota = _ROTA_TEMPLATE.format(
             rotulo=rotulo,
             estilo=_ESTILO,
             marca=MARCA,
             gerado_em=gerado_em,
+            aviso_linha_reta=aviso_linha_reta,
             dist_original=resultado.distancia_total_original_km,
             dist_otimizada=resultado.distancia_total_otimizada_km,
             economia_km=resultado.economia_km,
