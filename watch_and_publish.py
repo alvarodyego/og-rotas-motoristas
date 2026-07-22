@@ -32,6 +32,12 @@ PADRAO_ARQUIVO_PADRAO = "rastro_rotas*.txt"
 ARQUIVO_ESTADO = ".watch_state.json"
 INTERVALO_SEGUNDOS = 30
 
+# Coordenada fixa de saida do caminhao (ponto de partida usado para otimizar
+# a sequencia de entrega). Ajuste aqui se o ponto de saida mudar, ou passe
+# --origem-lat / --origem-lon na linha de comando.
+ORIGEM_LAT_PADRAO = -7.22722092594843
+ORIGEM_LON_PADRAO = -48.24978544427654
+
 
 def log(mensagem: str) -> None:
     """print() com timestamp, e com flush imediato (necessario quando a saida
@@ -75,7 +81,7 @@ def _publicar_no_git(repo_dir: str, mensagem: str) -> None:
     log("Publicado no GitHub Pages.")
 
 
-def processar_arquivo(caminho_txt: str, repo_dir: str) -> None:
+def processar_arquivo(caminho_txt: str, repo_dir: str, origem_lat: float, origem_lon: float) -> None:
     log(f"Processando {caminho_txt} ...")
     rotas = parse_arquivo(caminho_txt)
     if not rotas:
@@ -85,20 +91,21 @@ def processar_arquivo(caminho_txt: str, repo_dir: str) -> None:
     total = sum(len(v) for v in rotas.values())
     log(f"  {len(rotas)} rota(s) / {total} entrega(s).")
 
-    resultados = otimizar_todas(rotas)
+    resultados = otimizar_todas(rotas, origem_lat, origem_lon)
     docs_dir = os.path.join(repo_dir, "docs")
-    gerar_site(resultados, docs_dir)
+    gerar_site(resultados, docs_dir, origem_lat, origem_lon)
 
     nome_arquivo = os.path.basename(caminho_txt)
     _publicar_no_git(repo_dir, f"Atualiza rotas a partir de {nome_arquivo}")
 
 
-def watch(pasta_observada: str, repo_dir: str, padrao: str) -> None:
+def watch(pasta_observada: str, repo_dir: str, padrao: str, origem_lat: float, origem_lon: float) -> None:
     caminho_estado = os.path.join(repo_dir, ARQUIVO_ESTADO)
     estado = _carregar_estado(caminho_estado)
 
     log(f"Vigiando: {pasta_observada} (padrao: {padrao})")
     log(f"Repositorio: {repo_dir}")
+    log(f"Ponto de saida do caminhao: {origem_lat}, {origem_lon}")
     log("Iniciado. Pressione Ctrl+C para parar (se estiver rodando visivel).")
 
     while True:
@@ -112,7 +119,7 @@ def watch(pasta_observada: str, repo_dir: str, padrao: str) -> None:
                 if estado.get(chave) == mtime:
                     continue  # ja processado, sem mudanca
                 try:
-                    processar_arquivo(caminho, repo_dir)
+                    processar_arquivo(caminho, repo_dir, origem_lat, origem_lon)
                 except Exception as exc:  # nao derruba o watcher por um arquivo ruim
                     log(f"  Erro ao processar {caminho}: {exc}")
                     continue
@@ -134,6 +141,10 @@ def main() -> None:
     ap.add_argument("--log-file", default=None,
                      help="Se definido, grava a saida nesse arquivo em vez do console "
                           "(necessario ao rodar sem janela, via pythonw/tarefa agendada)")
+    ap.add_argument("--origem-lat", type=float, default=ORIGEM_LAT_PADRAO,
+                     help=f"Latitude do ponto de saida do caminhao (padrao: {ORIGEM_LAT_PADRAO})")
+    ap.add_argument("--origem-lon", type=float, default=ORIGEM_LON_PADRAO,
+                     help=f"Longitude do ponto de saida do caminhao (padrao: {ORIGEM_LON_PADRAO})")
     args = ap.parse_args()
 
     if not os.path.isdir(args.pasta_observada):
@@ -144,7 +155,7 @@ def main() -> None:
         sys.stdout = log_f
         sys.stderr = log_f
 
-    watch(args.pasta_observada, args.repo_dir, args.padrao)
+    watch(args.pasta_observada, args.repo_dir, args.padrao, args.origem_lat, args.origem_lon)
 
 
 if __name__ == "__main__":

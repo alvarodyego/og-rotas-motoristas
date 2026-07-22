@@ -68,6 +68,7 @@ _ROTA_TEMPLATE = """<!doctype html>
   <span>Distancia original: <b>{dist_original:.2f} km</b></span>
   <span>Distancia otimizada: <b>{dist_otimizada:.2f} km</b></span>
   <span>Economia: <b>{economia_km:.2f} km ({economia_pct:.1f}%)</b></span>
+  <span>Saida ate a 1a parada: <b>{dist_origem_primeira:.2f} km</b></span>
 </div>
 <div id="mapa"></div>
 <main>
@@ -78,6 +79,7 @@ _ROTA_TEMPLATE = """<!doctype html>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const PARADAS = {paradas_json};
+const ORIGEM = {origem_json};
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa');
@@ -97,7 +99,20 @@ function iconeNumerado(numero) {{
   }});
 }}
 
-const pontos = [];
+const iconeOrigem = L.divIcon({{
+  className: 'icone-origem',
+  html: '<div style="background:#c00000;color:#fff;border-radius:50%;width:26px;height:26px;' +
+        'display:flex;align-items:center;justify-content:center;font-size:14px;' +
+        'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">&#128666;</div>',
+  iconSize: [26, 26],
+  iconAnchor: [13, 13]
+}});
+
+const pontos = [[ORIGEM.lat, ORIGEM.lon]];
+L.marker([ORIGEM.lat, ORIGEM.lon], {{ icon: iconeOrigem }})
+  .bindPopup('<b>Saida do caminhao</b>')
+  .addTo(mapa);
+
 PARADAS.forEach(p => {{
   const li = document.createElement('li');
   li.className = 'parada';
@@ -108,7 +123,7 @@ PARADAS.forEach(p => {{
     '<div class="info">' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
-      '<div class="meta">' + distTxt + ' &middot; ref. plano original: ' + (p.hora_ref || '-') + '</div>' +
+      '<div class="meta">' + distTxt + '</div>' +
     '</div>';
   listaEl.appendChild(li);
   pontos.push([p.lat, p.lon]);
@@ -165,13 +180,17 @@ def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
             "lat": p.entrega.latitude,
             "lon": p.entrega.longitude,
             "dist_proxima_km": p.distancia_ate_proxima_km,
-            "hora_ref": p.entrega.hora_entrega_original or p.entrega.hora_chegada,
         }
         for p in resultado.ordem_otimizada
     ]
 
 
-def gerar_site(resultados: dict[str, ResultadoRota], docs_dir: str) -> list[str]:
+def gerar_site(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    origem_lat: float,
+    origem_lon: float,
+) -> list[str]:
     """Gera docs/index.html e docs/rotas/<ROTA>.html. Retorna a lista de
     arquivos gerados (paths relativos a docs_dir), util para o watcher decidir
     o que commitar."""
@@ -180,6 +199,7 @@ def gerar_site(resultados: dict[str, ResultadoRota], docs_dir: str) -> list[str]
 
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
     arquivos_gerados = []
+    origem_json = json.dumps({"lat": origem_lat, "lon": origem_lon})
 
     itens_index = []
     for rota in sorted(resultados):
@@ -196,7 +216,9 @@ def gerar_site(resultados: dict[str, ResultadoRota], docs_dir: str) -> list[str]
             dist_otimizada=resultado.distancia_total_otimizada_km,
             economia_km=resultado.economia_km,
             economia_pct=resultado.economia_percentual,
+            dist_origem_primeira=resultado.distancia_origem_primeira_km,
             paradas_json=json.dumps(paradas, ensure_ascii=False),
+            origem_json=origem_json,
         )
         caminho_rota = os.path.join(rotas_dir, f"{slug}.html")
         with open(caminho_rota, "w", encoding="utf-8") as f:

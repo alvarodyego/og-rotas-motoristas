@@ -2,13 +2,14 @@
 Otimizacao de sequencia de entrega por proximidade geografica.
 
 AVISO IMPORTANTE: este algoritmo otimiza SOMENTE por distancia geografica
-(nearest neighbor sobre distancia real de Haversine). Ele NAO considera
-janela de horario, prazo de entrega combinado com o cliente, prioridade de
-cliente, capacidade do veiculo por trecho, nem transito. Se a operacao
-precisar respeitar horarios de entrega combinados, essa restricao precisa
-ser adicionada depois (ex: nearest neighbor com janela de tempo, ou um
-solver de VRPTW). Use o resultado como um ponto de partida geografico, nao
-como a rota final se houver compromissos de horario com os clientes.
+(nearest neighbor sobre distancia real de Haversine), partindo da coordenada
+fixa de saida do caminhao. Ele NAO considera janela de horario, prazo de
+entrega combinado com o cliente, prioridade de cliente, capacidade do
+veiculo por trecho, nem transito. Se a operacao precisar respeitar horarios
+de entrega combinados, essa restricao precisa ser adicionada depois (ex:
+nearest neighbor com janela de tempo, ou um solver de VRPTW). Use o
+resultado como um ponto de partida geografico, nao como a rota final se
+houver compromissos de horario com os clientes.
 """
 from __future__ import annotations
 
@@ -39,10 +40,10 @@ class ParadaOtimizada:
 @dataclass
 class ResultadoRota:
     rota: str
-    ordem_original: list[Entrega]
     ordem_otimizada: list[ParadaOtimizada]
-    distancia_total_original_km: float
-    distancia_total_otimizada_km: float
+    distancia_origem_primeira_km: float  # saida do caminhao ate a 1a parada (ordem otimizada)
+    distancia_total_original_km: float  # inclui a perna saida->1a parada, na ordem original do plano
+    distancia_total_otimizada_km: float  # inclui a perna saida->1a parada, na ordem otimizada
 
     @property
     def economia_km(self) -> float:
@@ -55,46 +56,45 @@ class ResultadoRota:
         return (self.economia_km / self.distancia_total_original_km) * 100
 
 
-def _distancia_total(entregas: list[Entrega]) -> float:
+def _distancia_total(pontos: list[tuple[float, float]]) -> float:
     total = 0.0
-    for a, b in zip(entregas, entregas[1:]):
-        total += haversine_km(a.latitude, a.longitude, b.latitude, b.longitude)
+    for (lat1, lon1), (lat2, lon2) in zip(pontos, pontos[1:]):
+        total += haversine_km(lat1, lon1, lat2, lon2)
     return total
 
 
-def _ordem_original_por_horario(entregas: list[Entrega]) -> list[Entrega]:
-    """Ordem original do plano, pelo horario de entrega/chegada informado.
-
-    Usada tanto para calcular a distancia 'antes' quanto para escolher o
-    ponto de partida da otimizacao (parada mais cedo = proxy do ponto mais
-    proximo do CD).
-    """
-
-    def chave(e: Entrega) -> str:
-        return e.hora_chegada or e.hora_entrega_original or "99:99"
-
-    return sorted(entregas, key=chave)
-
-
-def otimizar_rota(rota: str, entregas: list[Entrega]) -> ResultadoRota:
-    """Aplica nearest neighbor (Haversine) a uma rota e compara com o plano original."""
-    ordem_original = _ordem_original_por_horario(entregas)
-    distancia_original = _distancia_total(ordem_original)
-
+def otimizar_rota(
+    rota: str,
+    entregas: list[Entrega],
+    origem_lat: float,
+    origem_lon: float,
+) -> ResultadoRota:
+    """Aplica nearest neighbor (Haversine) a uma rota, partindo da coordenada
+    de saida do caminhao, e compara com o plano original (ordem em que as
+    entregas aparecem no relatorio do PathFind)."""
     if not entregas:
-        return ResultadoRota(rota, [], [], 0.0, 0.0)
+        return ResultadoRota(rota, [], 0.0, 0.0, 0.0)
 
-    restantes = list(ordem_original)
-    atual = restantes.pop(0)
-    caminho = [atual]
+    origem = (origem_lat, origem_lon)
+
+    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in entregas]
+    distancia_original = _distancia_total(pontos_originais)
+
+    restantes = list(entregas)
+    atual_lat, atual_lon = origem_lat, origem_lon
+    caminho: list[Entrega] = []
     while restantes:
         proximo = min(
             restantes,
-            key=lambda e: haversine_km(atual.latitude, atual.longitude, e.latitude, e.longitude),
+            key=lambda e: haversine_km(atual_lat, atual_lon, e.latitude, e.longitude),
         )
         restantes.remove(proximo)
         caminho.append(proximo)
-        atual = proximo
+        atual_lat, atual_lon = proximo.latitude, proximo.longitude
+
+    distancia_origem_primeira = haversine_km(
+        origem_lat, origem_lon, caminho[0].latitude, caminho[0].longitude
+    )
 
     paradas: list[ParadaOtimizada] = []
     for i, entrega in enumerate(caminho):
@@ -107,16 +107,24 @@ def otimizar_rota(rota: str, entregas: list[Entrega]) -> ResultadoRota:
             dist = None
         paradas.append(ParadaOtimizada(sequencia=i + 1, entrega=entrega, distancia_ate_proxima_km=dist))
 
-    distancia_otimizada = _distancia_total(caminho)
+    pontos_otimizados = [origem] + [(e.latitude, e.longitude) for e in caminho]
+    distancia_otimizada = _distancia_total(pontos_otimizados)
 
     return ResultadoRota(
         rota=rota,
-        ordem_original=ordem_original,
         ordem_otimizada=paradas,
+        distancia_origem_primeira_km=distancia_origem_primeira,
         distancia_total_original_km=distancia_original,
         distancia_total_otimizada_km=distancia_otimizada,
     )
 
 
-def otimizar_todas(rotas: dict[str, list[Entrega]]) -> dict[str, ResultadoRota]:
-    return {rota: otimizar_rota(rota, entregas) for rota, entregas in rotas.items()}
+def otimizar_todas(
+    rotas: dict[str, list[Entrega]],
+    origem_lat: float,
+    origem_lon: float,
+) -> dict[str, ResultadoRota]:
+    return {
+        rota: otimizar_rota(rota, entregas, origem_lat, origem_lon)
+        for rota, entregas in rotas.items()
+    }
