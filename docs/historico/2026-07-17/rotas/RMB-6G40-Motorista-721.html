@@ -39,6 +39,17 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .meta { font-size: 0.68rem; color: var(--azul); margin-top: 4px; }
 .parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
 .parada .btn-maps:visited { color: #fff; }
+.parada.status-entregue { border-left: 4px solid #1e7e34; }
+.parada.status-devolucao { border-left: 4px solid #c00000; }
+.parada.status-fechado { border-left: 4px solid #b8860b; }
+.status-botoes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.status-btn { flex: 1; min-width: 84px; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #fff; cursor: pointer; text-align: center; }
+.status-btn.entregue { border: 1.5px solid #1e7e34; color: #1e7e34; }
+.status-btn.devolucao { border: 1.5px solid #c00000; color: #c00000; }
+.status-btn.fechado { border: 1.5px solid #b8860b; color: #b8860b; }
+.status-btn.entregue.ativo { background: #1e7e34; color: #fff; }
+.status-btn.devolucao.ativo { background: #c00000; color: #fff; }
+.status-btn.fechado.ativo { background: #b8860b; color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
 footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
@@ -51,7 +62,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>RMB-6G40 - Motorista 721</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:42</div>
+  <div class="sub">Atualizado em 22/07/2026 16:02</div>
 </header>
 <div id="mapa"></div>
 <main>
@@ -72,6 +83,28 @@ const PARADAS = [{"seq": 1, "codigo": "00430378", "cliente": "REST SABOR NORDEST
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.093243, -48.171055], [-7.068366, -48.119774], [-7.032281, -48.103509], [-6.968575, -48.099529], [-6.915281, -48.052834], [-6.883868, -47.994352], [-6.839148, -47.946641], [-6.822698, -47.819428], [-6.737125, -47.778172], [-6.654688, -47.721095], [-6.613767, -47.54543], [-6.613499, -47.548487], [-6.611051, -47.545781], [-6.60812, -47.542174], [-6.607417, -47.548734], [-6.611715, -47.559069], [-6.597664, -47.573673], [-6.435663, -47.668065], [-6.435962, -47.668418], [-6.379431, -47.662708], [-6.379423, -47.662708], [-6.373369, -47.663744], [-6.373106, -47.664737], [-6.372817, -47.664928], [-6.372821, -47.658742], [-6.369278, -47.649035], [-6.368659, -47.68516], [-6.372726, -47.741717], [-6.345875, -47.751022], [-6.315976, -47.793471], [-6.31435, -47.794518], [-6.313394, -47.795165], [-6.312407, -47.795834], [-6.328911, -47.810129], [-6.333774, -47.840986], [-6.333806, -47.841018], [-6.334167, -47.841334], [-6.335125, -47.841706], [-6.334829, -47.84329], [-6.333442, -47.842252]];
 const TRACADO_VOLTA = [[-6.333442, -47.842252], [-6.33575, -47.860347], [-6.360253, -47.866019], [-6.422426, -47.851855], [-6.515932, -47.867941], [-6.56105, -47.855967], [-6.586213, -47.874218], [-6.64786, -47.874083], [-6.68324, -47.856156], [-6.710917, -47.756537], [-6.823169, -47.820048], [-6.839292, -47.946965], [-6.953087, -48.091498], [-7.033154, -48.103699], [-7.068366, -48.119774], [-7.093243, -48.171055], [-7.22693, -48.250414]];
+const DATA_ISO = '2026-07-17';
+
+// Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
+// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
+// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
+// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
+// rota de um dia futuro com o mesmo cliente.
+function chaveStatus(codigo) {
+  return 'status_' + DATA_ISO + '_' + codigo;
+}
+function lerStatus(codigo) {
+  return localStorage.getItem(chaveStatus(codigo)) || '';
+}
+function aplicarStatus(li, status) {
+  li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
+  li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
+  if (status) {
+    li.classList.add('status-' + status);
+    const btn = li.querySelector('.status-btn.' + status);
+    if (btn) btn.classList.add('ativo');
+  }
+}
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', { preferCanvas: true });
@@ -122,9 +155,27 @@ PARADAS.forEach(p => {
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
+      '<div class="status-botoes">' +
+        '<div class="status-btn entregue" data-status="entregue">Entregue</div>' +
+        '<div class="status-btn devolucao" data-status="devolucao">Devolucao</div>' +
+        '<div class="status-btn fechado" data-status="fechado">Voltar depois/Fechado</div>' +
+      '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
+  aplicarStatus(li, lerStatus(p.codigo));
+  li.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.dataset.status;
+      const novo = btn.classList.contains('ativo') ? '' : status;
+      if (novo) {
+        localStorage.setItem(chaveStatus(p.codigo), novo);
+      } else {
+        localStorage.removeItem(chaveStatus(p.codigo));
+      }
+      aplicarStatus(li, novo);
+    });
+  });
   pontos.push([p.lat, p.lon]);
   L.marker([p.lat, p.lon], { icon: iconeNumerado(p.seq) })
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
