@@ -54,13 +54,13 @@ _ROTA_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>{rota} - Rota de entrega</title>
+<title>{rotulo} - Rota de entrega</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>{estilo}</style>
 </head>
 <body>
 <header>
-  <h1>Rota {rota}</h1>
+  <h1>{rotulo}</h1>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
 <div class="aviso">{aviso}</div>
@@ -167,8 +167,26 @@ _INDEX_TEMPLATE = """<!doctype html>
 """
 
 
-def _slug_rota(rota: str) -> str:
-    return re.sub(r"[^A-Za-z0-9_-]", "-", rota)
+_CODIGO_MOTORISTA_RE = re.compile(r"(\d+)")
+
+
+def rotulo_rota(resultado: ResultadoRota) -> str:
+    """Rotulo mostrado ao motorista: placa do veiculo + codigo do motorista
+    (ex: 'TVA-5A26 - Motorista 729'), em vez do codigo interno da rota
+    (RTxxxxxx), que nao significa nada pra quem esta dirigindo."""
+    if not resultado.ordem_otimizada:
+        return resultado.rota
+    primeira = resultado.ordem_otimizada[0].entrega
+    placa = primeira.veiculo or "Veiculo"
+    codigo_m = _CODIGO_MOTORISTA_RE.search(primeira.motorista_nome or "")
+    if codigo_m:
+        return f"{placa} - Motorista {codigo_m.group(1)}"
+    return f"{placa} - Sem motorista definido"
+
+
+def _slug(texto: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", texto).strip("-")
+    return slug or "rota"
 
 
 def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
@@ -191,24 +209,37 @@ def gerar_site(
     origem_lat: float,
     origem_lon: float,
 ) -> list[str]:
-    """Gera docs/index.html e docs/rotas/<ROTA>.html. Retorna a lista de
-    arquivos gerados (paths relativos a docs_dir), util para o watcher decidir
-    o que commitar."""
+    """Gera docs/index.html e docs/rotas/<placa-motorista>.html. Retorna a
+    lista de arquivos gerados (paths relativos a docs_dir), util para o
+    watcher decidir o que commitar."""
     rotas_dir = os.path.join(docs_dir, "rotas")
     os.makedirs(rotas_dir, exist_ok=True)
+
+    # Limpa paginas de rotas de execucoes anteriores: como o nome do arquivo
+    # agora depende da placa/motorista (que pode mudar de rota pra rota, dia
+    # a dia), sem isso paginas antigas ficariam "orfas" (publicadas, mas sem
+    # link nenhum apontando pra elas) na pasta.
+    for nome in os.listdir(rotas_dir):
+        if nome.endswith(".html"):
+            os.remove(os.path.join(rotas_dir, nome))
 
     gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
     arquivos_gerados = []
     origem_json = json.dumps({"lat": origem_lat, "lon": origem_lon})
 
     itens_index = []
+    slugs_usados: dict[str, int] = {}
     for rota in sorted(resultados):
         resultado = resultados[rota]
-        slug = _slug_rota(rota)
+        rotulo = rotulo_rota(resultado)
+        slug_base = _slug(rotulo)
+        contagem = slugs_usados.get(slug_base, 0)
+        slugs_usados[slug_base] = contagem + 1
+        slug = slug_base if contagem == 0 else f"{slug_base}-{contagem + 1}"
         paradas = _resultado_para_paradas(resultado)
 
         html_rota = _ROTA_TEMPLATE.format(
-            rota=rota,
+            rotulo=rotulo,
             estilo=_ESTILO,
             gerado_em=gerado_em,
             aviso=AVISO_OTIMIZACAO,
@@ -226,7 +257,7 @@ def gerar_site(
         arquivos_gerados.append(os.path.join("rotas", f"{slug}.html"))
 
         itens_index.append(
-            f'<li><a href="rotas/{slug}.html">{rota} '
+            f'<li><a href="rotas/{slug}.html">{rotulo} '
             f'<small>{len(paradas)} paradas &middot; '
             f'{resultado.distancia_total_otimizada_km:.1f} km</small></a></li>'
         )
