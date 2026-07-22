@@ -52,14 +52,16 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 </header>
 <div class="filtro-data">
   <label for="seletorData">Ver rotas de:</label>
-  <select id="seletorData"><option value="2026-07-21">21/07/2026 (hoje)</option></select>
+  <select id="seletorData"><option value="2026-07-22">22/07/2026 (hoje)</option></select>
   <a href="index.html">Ir para hoje</a>
 </div>
 <main>
   <ul class="lista-rotas">
-    <li><a href="rotas/TVA-5A26-Motorista-729.html">TVA-5A26 - Motorista 729 <small>29 paradas &middot; 59.3 km</small></a></li>
-    <li><a href="rotas/TVA-6H37-Motorista-726.html">TVA-6H37 - Motorista 726 <small>30 paradas &middot; 33.3 km</small></a></li>
+    <li><a href="rotas/TVA-6H36-Motorista-720.html">TVA-6H36 - Motorista 720 <small>40 paradas &middot; 133.3 km</small></a></li>
+    <li><a href="rotas/RMB-6G45-Motorista-724.html">RMB-6G45 - Motorista 724 <small>28 paradas &middot; 45.3 km</small></a></li>
+    <li><a href="rotas/RMB-6G43-Motorista-730.html">RMB-6G43 - Motorista 730 <small>36 paradas &middot; 34.3 km</small></a></li>
     <li><a href="rotas/OLL-3030-Sem-motorista-definido.html">OLL-3030 - Sem motorista definido <small>1 paradas &middot; 12.6 km</small></a></li>
+    <li><a href="rotas/TVA-4H02-Sem-motorista-definido.html">TVA-4H02 - Sem motorista definido <small>4 paradas &middot; 43.1 km</small></a></li>
   </ul>
 </main>
 <footer>Gerado automaticamente a partir do relatorio do dia.</footer>
@@ -74,7 +76,7 @@ fetch('historico/manifest.json').then(r => r.json()).then(dias => {
     opt.textContent = d.data_br + ' (' + d.rotas + ' rota(s))';
     sel.appendChild(opt);
   });
-  sel.value = '2026-07-21';
+  sel.value = '2026-07-22';
   sel.addEventListener('change', () => {
     window.location.href = 'historico/' + sel.value + '/index.html';
   });
