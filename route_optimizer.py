@@ -67,6 +67,8 @@ class ResultadoRota:
     distancia_total_original_km: float  # ida (saida->1a...ultima) + volta, na ordem original do plano
     distancia_total_otimizada_km: float  # ida (saida->1a...ultima) + volta, na ordem otimizada
     usou_distancia_real: bool  # False se caiu para linha reta por falha do OSRM
+    tracado_ida: list[tuple[float, float]] | None  # geometria real (lat,lon) da saida ate a ultima parada
+    tracado_volta: list[tuple[float, float]] | None  # geometria real (lat,lon) da ultima parada de volta a saida
 
     @property
     def economia_km(self) -> float:
@@ -156,6 +158,31 @@ def obter_matriz_distancias(pontos: list[tuple[float, float]]) -> tuple[list[lis
     return _matriz_haversine(pontos), False
 
 
+def _tracado_osrm(pontos: list[tuple[float, float]]) -> list[tuple[float, float]] | None:
+    """Pede ao OSRM o tracado real (seguindo as ruas) passando pelos pontos
+    na ordem dada, para desenhar no mapa. Diferente de _matriz_osrm (que so
+    da a distancia), aqui pegamos a geometria do caminho de verdade. Retorna
+    None se o servico falhar -- quem chamar deve desenhar uma linha reta
+    entre os pontos como reserva nesse caso."""
+    if len(pontos) < 2:
+        return None
+    coords = ";".join(f"{lon},{lat}" for lat, lon in pontos)
+    url = f"{OSRM_BASE_URL}/route/v1/driving/{coords}?overview=simplified&geometries=geojson"
+    try:
+        with urllib.request.urlopen(url, timeout=OSRM_TIMEOUT_SEGUNDOS) as resp:
+            dados = json.load(resp)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return None
+
+    if dados.get("code") != "Ok" or not dados.get("routes"):
+        return None
+    try:
+        coords_geojson = dados["routes"][0]["geometry"]["coordinates"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    return [(lat, lon) for lon, lat in coords_geojson]
+
+
 def otimizar_rota(
     rota: str,
     entregas: list[Entrega],
@@ -167,7 +194,7 @@ def otimizar_rota(
     final, e compara com o plano original (a sequencia de visita que o
     proprio PathFind calculou)."""
     if not entregas:
-        return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0, True)
+        return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0, True, None, None)
 
     # indice 0 = origem; indices 1..N = entregas, na mesma ordem da lista
     # recebida (a otimizacao trabalha com indices para nao perder a
@@ -216,6 +243,15 @@ def otimizar_rota(
         dist(a, b) for a, b in zip(indices_otimizados, indices_otimizados[1:])
     )
 
+    # Tracado real pro mapa (nao apenas a distancia): pede ao OSRM o caminho
+    # que realmente segue as ruas, separado em ida (saida -> ... -> ultima
+    # parada) e volta (ultima parada -> saida), pra manter a mesma distincao
+    # visual (linha solida / tracejada) que ja existia com a linha reta.
+    pontos_ida = [(origem_lat, origem_lon)] + [(e.latitude, e.longitude) for e in caminho]
+    tracado_ida = _tracado_osrm(pontos_ida) if usou_distancia_real else None
+    pontos_volta = [(caminho[-1].latitude, caminho[-1].longitude), (origem_lat, origem_lon)]
+    tracado_volta = _tracado_osrm(pontos_volta) if usou_distancia_real else None
+
     return ResultadoRota(
         rota=rota,
         ordem_otimizada=paradas,
@@ -224,6 +260,8 @@ def otimizar_rota(
         distancia_total_original_km=distancia_original,
         distancia_total_otimizada_km=distancia_otimizada,
         usou_distancia_real=usou_distancia_real,
+        tracado_ida=tracado_ida,
+        tracado_volta=tracado_volta,
     )
 
 

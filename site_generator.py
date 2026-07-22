@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import datetime
+from datetime import date, datetime
 
 from route_optimizer import ResultadoRota
 
@@ -46,17 +46,20 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
-.resumo { font-size: 0.85rem; padding: 8px 16px; background: var(--azul-claro); display: flex; gap: 16px; flex-wrap: wrap; }
-.resumo b { color: var(--azul); }
-#mapa { width: 100%; height: 42vh; min-height: 260px; }
-main { max-width: 720px; margin: 0 auto; }
+.resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
+.resumo > div { display: flex; flex-direction: column; }
+.resumo span { color: #555; }
+.resumo b { color: var(--azul); font-size: 0.8rem; }
+#mapa { width: 100%; height: 68vh; min-height: 460px; }
+main { max-width: 720px; margin: 0 auto; padding: 0 4px; }
 ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada { display: flex; gap: 10px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
 .parada .num { background: var(--azul); color: #fff; border-radius: 50%; width: 26px; height: 26px; min-width: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: bold; align-self: flex-start; }
 .parada .info { flex: 1; }
-.parada .cliente { font-weight: bold; font-size: 0.95rem; }
-.parada .endereco { font-size: 0.82rem; color: #444; margin-top: 2px; }
-.parada .meta { font-size: 0.78rem; color: var(--azul); margin-top: 4px; }
+.parada .codigo { font-size: 0.68rem; color: #888; font-weight: bold; }
+.parada .cliente { font-weight: bold; font-size: 0.85rem; }
+.parada .endereco { font-size: 0.72rem; color: #444; margin-top: 2px; }
+.parada .meta { font-size: 0.68rem; color: var(--azul); margin-top: 4px; }
 .parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
 .parada .btn-maps:visited { color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
@@ -85,16 +88,16 @@ _ROTA_TEMPLATE = """<!doctype html>
   <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
-{aviso_linha_reta}<div class="resumo">
-  <span>Distancia original (ida e volta): <b>{dist_original:.2f} km</b></span>
-  <span>Distancia otimizada (ida e volta): <b>{dist_otimizada:.2f} km</b></span>
-  <span>Economia: <b>{economia_km:.2f} km ({economia_pct:.1f}%)</b></span>
-  <span>Saida ate a 1a parada: <b>{dist_origem_primeira:.2f} km</b></span>
-  <span>Volta ao ponto de partida: <b>{dist_retorno:.2f} km</b></span>
-</div>
-<div id="mapa"></div>
+{aviso_linha_reta}<div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
+  <div class="resumo">
+    <div><span>Original (ida/volta)</span><b>{dist_original:.2f} km</b></div>
+    <div><span>Otimizada (ida/volta)</span><b>{dist_otimizada:.2f} km</b></div>
+    <div><span>Economia</span><b>{economia_km:.2f} km ({economia_pct:.1f}%)</b></div>
+    <div><span>Saida &rarr; 1a parada</span><b>{dist_origem_primeira:.2f} km</b></div>
+    <div><span>Ultima parada &rarr; volta</span><b>{dist_retorno:.2f} km</b></div>
+  </div>
 </main>
 <footer><a href="../index.html">Ver todas as rotas desta data</a></footer>
 
@@ -102,6 +105,8 @@ _ROTA_TEMPLATE = """<!doctype html>
 <script>
 const PARADAS = {paradas_json};
 const ORIGEM = {origem_json};
+const TRACADO_IDA = {tracado_ida_json};
+const TRACADO_VOLTA = {tracado_volta_json};
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', {{ preferCanvas: true }});
@@ -146,6 +151,7 @@ PARADAS.forEach(p => {{
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
+      '<div class="codigo">' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + distTxt + '</div>' +
@@ -154,14 +160,19 @@ PARADAS.forEach(p => {{
   listaEl.appendChild(li);
   pontos.push([p.lat, p.lon]);
   L.marker([p.lat, p.lon], {{ icon: iconeNumerado(p.seq) }})
-    .bindPopup('<b>' + p.seq + '. ' + p.cliente + '</b><br>' + p.endereco)
+    .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
     .addTo(mapa);
 }});
 if (pontos.length > 1) {{
-  L.polyline(pontos, {{ color: '#1f4e78', weight: 3, opacity: 0.8 }}).addTo(mapa);
-  L.polyline([pontos[pontos.length - 1], [ORIGEM.lat, ORIGEM.lon]], {{
-    color: '#c00000', weight: 3, opacity: 0.7, dashArray: '6 8'
-  }}).addTo(mapa);
+  // TRACADO_IDA/TRACADO_VOLTA vem do OSRM (segue as ruas de verdade). Se o
+  // servico falhou na hora de gerar a pagina, caimos para uma linha reta
+  // entre os pontos, so pra sempre ter algo desenhado no mapa.
+  const linhaIda = (TRACADO_IDA && TRACADO_IDA.length > 1) ? TRACADO_IDA : pontos;
+  const linhaVolta = (TRACADO_VOLTA && TRACADO_VOLTA.length > 1)
+    ? TRACADO_VOLTA
+    : [pontos[pontos.length - 1], [ORIGEM.lat, ORIGEM.lon]];
+  L.polyline(linhaIda, {{ color: '#1f4e78', weight: 4, opacity: 0.75 }}).addTo(mapa);
+  L.polyline(linhaVolta, {{ color: '#c00000', weight: 4, opacity: 0.65, dashArray: '6 8' }}).addTo(mapa);
 }}
 if (pontos.length) {{
   mapa.fitBounds(pontos, {{ padding: [30, 30] }});
@@ -245,6 +256,7 @@ def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
     return [
         {
             "seq": p.sequencia,
+            "codigo": p.entrega.codigo_cliente,
             "cliente": p.entrega.cliente,
             "endereco": p.entrega.endereco,
             "lat": p.entrega.latitude,
@@ -316,6 +328,8 @@ def _gerar_paginas(
             dist_retorno=resultado.distancia_retorno_km,
             paradas_json=json.dumps(paradas, ensure_ascii=False),
             origem_json=origem_json,
+            tracado_ida_json=json.dumps(resultado.tracado_ida),
+            tracado_volta_json=json.dumps(resultado.tracado_volta),
         )
         caminho_rota = os.path.join(rotas_dir, f"{slug}.html")
         with open(caminho_rota, "w", encoding="utf-8") as f:
@@ -369,16 +383,26 @@ def gerar_site(
     docs_dir: str,
     origem_lat: float,
     origem_lon: float,
+    data_referencia: date | None = None,
 ) -> list[str]:
     """Gera a pagina 'de hoje' (docs/index.html e docs/rotas/*.html -- o link
     fixo que os motoristas devem usar todo dia) e uma copia arquivada em
     docs/historico/<AAAA-MM-DD>/, alimentando o filtro de data da pagina
     inicial. Retorna a lista de arquivos gerados (paths relativos a
-    docs_dir), util para o watcher decidir o que commitar."""
+    docs_dir), util para o watcher decidir o que commitar.
+
+    `data_referencia` e' a data REAL a que os dados se referem (normalmente
+    extraida do nome do arquivo do PathFind pelo watcher, ex:
+    "rastro_rotas_22-07-2026.txt" -> 22/07/2026) -- nao a data em que o
+    script rodou. Isso importa quando dois arquivos de dias diferentes sao
+    processados no mesmo dia (ex: um atrasado); sem essa distincao, os dois
+    cairiam no mesmo dia do historico e um sobrescreveria o outro. Se nao
+    for informada, usa a data de hoje (uso direto/testes)."""
     agora = datetime.now()
     gerado_em = agora.strftime("%d/%m/%Y %H:%M")
-    data_iso = agora.strftime("%Y-%m-%d")
-    data_br = agora.strftime("%d/%m/%Y")
+    data_ref = data_referencia or agora.date()
+    data_iso = data_ref.strftime("%Y-%m-%d")
+    data_br = data_ref.strftime("%d/%m/%Y")
 
     historico_dir = os.path.join(docs_dir, "historico")
     dia_dir = os.path.join(historico_dir, data_iso)

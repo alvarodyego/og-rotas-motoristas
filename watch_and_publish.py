@@ -19,14 +19,17 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import date, datetime
 
 from parsing import parse_arquivo
 from route_optimizer import otimizar_todas
 from site_generator import gerar_site
+
+_DATA_NO_NOME_RE = re.compile(r"(\d{2})-(\d{2})-(\d{4})")
 
 PADRAO_ARQUIVO_PADRAO = "rastro_rotas*.txt"
 ARQUIVO_ESTADO = ".watch_state.json"
@@ -57,12 +60,35 @@ def _salvar_estado(caminho_estado: str, estado: dict) -> None:
         json.dump(estado, f)
 
 
+def _data_do_arquivo(caminho: str) -> date:
+    """Extrai a data (DD-MM-AAAA) do nome do arquivo do PathFind, ex:
+    "rastro_rotas_22-07-2026.txt" -> 22/07/2026. Se o nome nao tiver esse
+    padrao (formato de export diferente), cai para a data de hoje -- e' a
+    melhor informacao disponivel nesse caso."""
+    nome = os.path.basename(caminho)
+    m = _DATA_NO_NOME_RE.search(nome)
+    if m:
+        dia, mes, ano = (int(x) for x in m.groups())
+        try:
+            return date(ano, mes, dia)
+        except ValueError:
+            pass
+    return date.today()
+
+
 def _listar_candidatos(pasta: str, padrao: str) -> list[str]:
-    return [
+    """Lista os arquivos candidatos, em ordem crescente de data (extraida do
+    nome do arquivo). Isso garante que, se mais de um arquivo novo aparecer
+    no mesmo ciclo (ex: um arquivo atrasado de ontem + o de hoje), eles sejam
+    processados do mais antigo para o mais novo -- e a pagina "de hoje"
+    (docs/index.html) acabe sempre refletindo o arquivo de data mais recente,
+    nao um dos dois escolhido por acaso pela ordem do sistema de arquivos."""
+    candidatos = [
         os.path.join(pasta, nome)
         for nome in os.listdir(pasta)
         if fnmatch.fnmatch(nome.lower(), padrao.lower())
     ]
+    return sorted(candidatos, key=_data_do_arquivo)
 
 
 def _publicar_no_git(repo_dir: str, mensagem: str) -> None:
@@ -82,7 +108,8 @@ def _publicar_no_git(repo_dir: str, mensagem: str) -> None:
 
 
 def processar_arquivo(caminho_txt: str, repo_dir: str, origem_lat: float, origem_lon: float) -> None:
-    log(f"Processando {caminho_txt} ...")
+    data_ref = _data_do_arquivo(caminho_txt)
+    log(f"Processando {caminho_txt} (data de referencia: {data_ref.strftime('%d/%m/%Y')}) ...")
     rotas = parse_arquivo(caminho_txt)
     if not rotas:
         log("  Nenhuma entrega reconhecida nesse arquivo, ignorando.")
@@ -98,10 +125,10 @@ def processar_arquivo(caminho_txt: str, repo_dir: str, origem_lat: float, origem
             f"(OSRM indisponivel no momento): {', '.join(r.rota for r in sem_distancia_real)}")
 
     docs_dir = os.path.join(repo_dir, "docs")
-    gerar_site(resultados, docs_dir, origem_lat, origem_lon)
+    gerar_site(resultados, docs_dir, origem_lat, origem_lon, data_referencia=data_ref)
 
     nome_arquivo = os.path.basename(caminho_txt)
-    _publicar_no_git(repo_dir, f"Atualiza rotas a partir de {nome_arquivo}")
+    _publicar_no_git(repo_dir, f"Atualiza rotas de {data_ref.strftime('%d/%m/%Y')} a partir de {nome_arquivo}")
 
 
 def watch(pasta_observada: str, repo_dir: str, padrao: str, origem_lat: float, origem_lon: float) -> None:

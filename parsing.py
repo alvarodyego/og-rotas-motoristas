@@ -19,6 +19,7 @@ class Entrega:
     rota: str
     veiculo: str
     motorista_nome: str
+    codigo_cliente: str
     cliente: str
     pedido_num: str
     peso_kg: float
@@ -40,12 +41,12 @@ _ROTA_RE = re.compile(r"^\s*(RT\d+)")
 # Marcador de pedido: "O2026-07-20114" -> data + numero do pedido colado.
 _PEDIDO_RE = re.compile(r"O(\d{4}-\d{2}-\d{2})(\d+)")
 
-# Nome do cliente: entre o codigo de 8 digitos do pedido e o marcador "O<data>".
-# A busca deve comecar depois do bloco de datas duplicadas, senao o regex de
-# 8 digitos pode casar por acidente com o final da 2a data colado a um
-# codigo seguinte (ex: "...07-22" + "000559" = 8 digitos que nao sao o
-# codigo do cliente).
-_CLIENTE_RE = re.compile(r"\d{8}\s+(.+?)\s{2,}O\d{4}-\d{2}-\d{2}\d+")
+# Codigo (8 digitos) e nome do cliente, antes do marcador "O<data>". A busca
+# deve comecar depois do bloco de datas duplicadas, senao o regex de 8
+# digitos pode casar por acidente com o final da 2a data colado a um codigo
+# seguinte (ex: "...07-22" + "000559" = 8 digitos que nao sao o codigo do
+# cliente).
+_CLIENTE_RE = re.compile(r"(\d{8})\s+(.+?)\s{2,}O\d{4}-\d{2}-\d{2}\d+")
 
 # Lat/lon seguidos do primeiro horario HH:MM (par de decimais negativos).
 # O horario fica em lookahead (nao consome) para que o bloco de 3 horarios
@@ -156,7 +157,8 @@ def parse_linha(linha: str, numero_linha: int = 0) -> Entrega | None:
             sequencia_original = int(sufixo[1:])
 
     cliente_m = _CLIENTE_RE.search(linha, pos=fim_datas)
-    cliente = cliente_m.group(1).strip() if cliente_m else ""
+    codigo_cliente = cliente_m.group(1).strip() if cliente_m else ""
+    cliente = cliente_m.group(2).strip() if cliente_m else ""
 
     tempos_m = _TEMPOS_RE.search(linha, pos=latlon_m.end())
     if tempos_m:
@@ -186,6 +188,7 @@ def parse_linha(linha: str, numero_linha: int = 0) -> Entrega | None:
         rota=rota,
         veiculo=veiculo,
         motorista_nome=motorista_nome,
+        codigo_cliente=codigo_cliente,
         cliente=cliente,
         pedido_num=pedido_num,
         peso_kg=peso_kg,
