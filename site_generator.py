@@ -3,6 +3,12 @@ Gera o site estatico publicado no GitHub Pages: uma pagina HTML por rota
 (link individual para cada motorista, com mapa Leaflet + lista de paradas)
 e uma pagina inicial (docs/index.html) listando as rotas do dia.
 
+Alem da pagina "de hoje" (docs/index.html e docs/rotas/*.html, que e o que
+os motoristas devem usar no link fixo do dia a dia), cada execucao tambem
+grava uma copia arquivada em docs/historico/<AAAA-MM-DD>/, para permitir o
+filtro por data na pagina inicial. O historico nunca é apagado
+automaticamente; ele so cresce um dia por vez.
+
 Nao existe backend nem senha: qualquer pessoa com o link de uma rota
 consegue abri-la (decisao do usuario). Por isso os arquivos NAO devem conter
 nada alem do que e necessario para a entrega (sem dados financeiros da
@@ -31,6 +37,10 @@ header { background: var(--azul); color: #fff; padding: 12px 16px; }
 header h1 { margin: 0; font-size: 1.1rem; }
 header .sub { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
 .aviso { background: #fff3cd; color: #664d03; font-size: 0.8rem; padding: 8px 16px; border-bottom: 1px solid #ffe69c; }
+.filtro-data { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+.filtro-data label { font-size: 0.85rem; }
+.filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
+.filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .resumo { font-size: 0.85rem; padding: 8px 16px; background: var(--azul-claro); display: flex; gap: 16px; flex-wrap: wrap; }
 .resumo b { color: var(--azul); }
 #mapa { width: 100%; height: 42vh; min-height: 260px; }
@@ -43,6 +53,7 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .endereco { font-size: 0.82rem; color: #444; margin-top: 2px; }
 .parada .meta { font-size: 0.78rem; color: var(--azul); margin-top: 4px; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
+footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
 ul.lista-rotas li { margin-bottom: 10px; }
 ul.lista-rotas a { display: block; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; text-decoration: none; color: var(--texto); font-weight: bold; }
@@ -74,7 +85,7 @@ _ROTA_TEMPLATE = """<!doctype html>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
 </main>
-<footer><a href="../index.html">Ver todas as rotas de hoje</a></footer>
+<footer><a href="../index.html">Ver todas as rotas desta data</a></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -147,21 +158,43 @@ _INDEX_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Rotas de hoje - PathFind</title>
+<title>{titulo_pagina} - PathFind</title>
 <style>{estilo}</style>
 </head>
 <body>
 <header>
-  <h1>Cargas otimizadas - PathFind</h1>
+  <h1>{titulo_pagina}</h1>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
 <div class="aviso">{aviso}</div>
+<div class="filtro-data">
+  <label for="seletorData">Ver rotas de:</label>
+  <select id="seletorData"><option value="{data_atual_iso}">{data_atual_br} (hoje)</option></select>
+  <a href="{hoje_rel}">Ir para hoje</a>
+</div>
 <main>
   <ul class="lista-rotas">
     {itens}
   </ul>
 </main>
 <footer>Gerado automaticamente a partir do relatorio do dia.</footer>
+
+<script>
+fetch('{manifest_rel}').then(r => r.json()).then(dias => {{
+  const sel = document.getElementById('seletorData');
+  sel.innerHTML = '';
+  dias.forEach(d => {{
+    const opt = document.createElement('option');
+    opt.value = d.data;
+    opt.textContent = d.data_br + ' (' + d.rotas + ' rota(s))';
+    sel.appendChild(opt);
+  }});
+  sel.value = '{data_atual_iso}';
+  sel.addEventListener('change', () => {{
+    window.location.href = '{historico_base_rel}' + sel.value + '/index.html';
+  }});
+}}).catch(() => {{}});
+</script>
 </body>
 </html>
 """
@@ -203,27 +236,33 @@ def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
     ]
 
 
-def gerar_site(
+def _gerar_paginas(
     resultados: dict[str, ResultadoRota],
-    docs_dir: str,
+    base_dir: str,
     origem_lat: float,
     origem_lon: float,
+    gerado_em: str,
+    titulo_pagina: str,
+    manifest_rel: str,
+    historico_base_rel: str,
+    hoje_rel: str,
+    data_atual_iso: str,
+    data_atual_br: str,
 ) -> list[str]:
-    """Gera docs/index.html e docs/rotas/<placa-motorista>.html. Retorna a
-    lista de arquivos gerados (paths relativos a docs_dir), util para o
-    watcher decidir o que commitar."""
-    rotas_dir = os.path.join(docs_dir, "rotas")
+    """Escreve <base_dir>/index.html e <base_dir>/rotas/*.html. Usada tanto
+    para a pagina 'de hoje' (docs/) quanto para a copia arquivada
+    (docs/historico/<data>/)."""
+    rotas_dir = os.path.join(base_dir, "rotas")
     os.makedirs(rotas_dir, exist_ok=True)
 
-    # Limpa paginas de rotas de execucoes anteriores: como o nome do arquivo
-    # agora depende da placa/motorista (que pode mudar de rota pra rota, dia
-    # a dia), sem isso paginas antigas ficariam "orfas" (publicadas, mas sem
-    # link nenhum apontando pra elas) na pasta.
+    # Limpa paginas de rotas de execucoes anteriores nesta mesma pasta: como
+    # o nome do arquivo depende da placa/motorista (que pode mudar de rota
+    # pra rota), sem isso paginas antigas ficariam "orfas" (publicadas, mas
+    # sem link nenhum apontando pra elas).
     for nome in os.listdir(rotas_dir):
         if nome.endswith(".html"):
             os.remove(os.path.join(rotas_dir, nome))
 
-    gerado_em = datetime.now().strftime("%d/%m/%Y %H:%M")
     arquivos_gerados = []
     origem_json = json.dumps({"lat": origem_lat, "lon": origem_lon})
 
@@ -266,11 +305,85 @@ def gerar_site(
         estilo=_ESTILO,
         gerado_em=gerado_em,
         aviso=AVISO_OTIMIZACAO,
+        titulo_pagina=titulo_pagina,
         itens="\n    ".join(itens_index),
+        manifest_rel=manifest_rel,
+        historico_base_rel=historico_base_rel,
+        hoje_rel=hoje_rel,
+        data_atual_iso=data_atual_iso,
+        data_atual_br=data_atual_br,
     )
-    caminho_index = os.path.join(docs_dir, "index.html")
+    caminho_index = os.path.join(base_dir, "index.html")
     with open(caminho_index, "w", encoding="utf-8") as f:
         f.write(html_index)
     arquivos_gerados.append("index.html")
+
+    return arquivos_gerados
+
+
+def _atualizar_manifest(historico_dir: str, data_iso: str, data_br: str, gerado_em: str, total_rotas: int) -> None:
+    caminho = os.path.join(historico_dir, "manifest.json")
+    dias = []
+    if os.path.isfile(caminho):
+        with open(caminho, "r", encoding="utf-8") as f:
+            try:
+                dias = json.load(f)
+            except json.JSONDecodeError:
+                dias = []
+    dias = [d for d in dias if d.get("data") != data_iso]
+    dias.append({"data": data_iso, "data_br": data_br, "rotas": total_rotas, "gerado_em": gerado_em})
+    dias.sort(key=lambda d: d["data"], reverse=True)
+    with open(caminho, "w", encoding="utf-8") as f:
+        json.dump(dias, f, ensure_ascii=False, indent=2)
+
+
+def gerar_site(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    origem_lat: float,
+    origem_lon: float,
+) -> list[str]:
+    """Gera a pagina 'de hoje' (docs/index.html e docs/rotas/*.html -- o link
+    fixo que os motoristas devem usar todo dia) e uma copia arquivada em
+    docs/historico/<AAAA-MM-DD>/, alimentando o filtro de data da pagina
+    inicial. Retorna a lista de arquivos gerados (paths relativos a
+    docs_dir), util para o watcher decidir o que commitar."""
+    agora = datetime.now()
+    gerado_em = agora.strftime("%d/%m/%Y %H:%M")
+    data_iso = agora.strftime("%Y-%m-%d")
+    data_br = agora.strftime("%d/%m/%Y")
+
+    historico_dir = os.path.join(docs_dir, "historico")
+    dia_dir = os.path.join(historico_dir, data_iso)
+    os.makedirs(historico_dir, exist_ok=True)
+
+    arquivos_gerados = []
+
+    # Pagina "de hoje": link fixo que nao muda de endereco dia a dia.
+    arquivos_hoje = _gerar_paginas(
+        resultados, docs_dir, origem_lat, origem_lon, gerado_em,
+        titulo_pagina="Cargas otimizadas",
+        manifest_rel="historico/manifest.json",
+        historico_base_rel="historico/",
+        hoje_rel="index.html",
+        data_atual_iso=data_iso,
+        data_atual_br=data_br,
+    )
+    arquivos_gerados.extend(arquivos_hoje)
+
+    # Copia arquivada do dia, para o filtro de data poder consultar depois.
+    arquivos_dia = _gerar_paginas(
+        resultados, dia_dir, origem_lat, origem_lon, gerado_em,
+        titulo_pagina=f"Rotas de {data_br}",
+        manifest_rel="../manifest.json",
+        historico_base_rel="../",
+        hoje_rel="../../index.html",
+        data_atual_iso=data_iso,
+        data_atual_br=data_br,
+    )
+    arquivos_gerados.extend(os.path.join("historico", data_iso, a) for a in arquivos_dia)
+
+    _atualizar_manifest(historico_dir, data_iso, data_br, gerado_em, len(resultados))
+    arquivos_gerados.append(os.path.join("historico", "manifest.json"))
 
     return arquivos_gerados
