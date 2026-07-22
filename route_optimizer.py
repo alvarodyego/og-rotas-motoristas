@@ -42,8 +42,9 @@ class ResultadoRota:
     rota: str
     ordem_otimizada: list[ParadaOtimizada]
     distancia_origem_primeira_km: float  # saida do caminhao ate a 1a parada (ordem otimizada)
-    distancia_total_original_km: float  # inclui a perna saida->1a parada, na ordem original do plano
-    distancia_total_otimizada_km: float  # inclui a perna saida->1a parada, na ordem otimizada
+    distancia_retorno_km: float  # ultima parada de volta ate o ponto de partida (ordem otimizada)
+    distancia_total_original_km: float  # ida (saida->1a...ultima) + volta, na ordem original do plano
+    distancia_total_otimizada_km: float  # ida (saida->1a...ultima) + volta, na ordem otimizada
 
     @property
     def economia_km(self) -> float:
@@ -70,14 +71,14 @@ def otimizar_rota(
     origem_lon: float,
 ) -> ResultadoRota:
     """Aplica nearest neighbor (Haversine) a uma rota, partindo da coordenada
-    de saida do caminhao, e compara com o plano original (ordem em que as
-    entregas aparecem no relatorio do PathFind)."""
+    de saida do caminhao e voltando a ela no final, e compara com o plano
+    original (ordem em que as entregas aparecem no relatorio do PathFind)."""
     if not entregas:
-        return ResultadoRota(rota, [], 0.0, 0.0, 0.0)
+        return ResultadoRota(rota, [], 0.0, 0.0, 0.0, 0.0)
 
     origem = (origem_lat, origem_lon)
 
-    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in entregas]
+    pontos_originais = [origem] + [(e.latitude, e.longitude) for e in entregas] + [origem]
     distancia_original = _distancia_total(pontos_originais)
 
     restantes = list(entregas)
@@ -95,6 +96,9 @@ def otimizar_rota(
     distancia_origem_primeira = haversine_km(
         origem_lat, origem_lon, caminho[0].latitude, caminho[0].longitude
     )
+    distancia_retorno = haversine_km(
+        caminho[-1].latitude, caminho[-1].longitude, origem_lat, origem_lon
+    )
 
     paradas: list[ParadaOtimizada] = []
     for i, entrega in enumerate(caminho):
@@ -107,13 +111,14 @@ def otimizar_rota(
             dist = None
         paradas.append(ParadaOtimizada(sequencia=i + 1, entrega=entrega, distancia_ate_proxima_km=dist))
 
-    pontos_otimizados = [origem] + [(e.latitude, e.longitude) for e in caminho]
+    pontos_otimizados = [origem] + [(e.latitude, e.longitude) for e in caminho] + [origem]
     distancia_otimizada = _distancia_total(pontos_otimizados)
 
     return ResultadoRota(
         rota=rota,
         ordem_otimizada=paradas,
         distancia_origem_primeira_km=distancia_origem_primeira,
+        distancia_retorno_km=distancia_retorno,
         distancia_total_original_km=distancia_original,
         distancia_total_otimizada_km=distancia_otimizada,
     )

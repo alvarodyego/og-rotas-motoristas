@@ -41,14 +41,15 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <body>
 <header>
   <h1>OLL-3030 - Sem motorista definido</h1>
-  <div class="sub">Atualizado em 22/07/2026 14:28</div>
+  <div class="sub">Atualizado em 22/07/2026 14:29</div>
 </header>
 <div class="aviso">Sequencia calculada apenas por proximidade geografica (vizinho mais proximo / Haversine). NAO considera janela de horario nem prazo de entrega combinado com o cliente.</div>
 <div class="resumo">
-  <span>Distancia original: <b>3.62 km</b></span>
-  <span>Distancia otimizada: <b>3.62 km</b></span>
+  <span>Distancia original (ida e volta): <b>7.37 km</b></span>
+  <span>Distancia otimizada (ida e volta): <b>7.37 km</b></span>
   <span>Economia: <b>0.00 km (0.0%)</b></span>
-  <span>Saida ate a 1a parada: <b>3.62 km</b></span>
+  <span>Saida ate a 1a parada: <b>3.69 km</b></span>
+  <span>Volta ao ponto de partida: <b>3.69 km</b></span>
 </div>
 <div id="mapa"></div>
 <main>
@@ -58,7 +59,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "cliente": "CASERATTO", "endereco": "AL ARAGUAIA01, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215755, "lon": -48.219056, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "cliente": "DONA MARIA BEACH", "endereco": "AL ARAGUAIA, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215596, "lon": -48.218502, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 
 const listaEl = document.getElementById('listaParadas');
@@ -115,6 +116,9 @@ PARADAS.forEach(p => {
 });
 if (pontos.length > 1) {
   L.polyline(pontos, { color: '#1f4e78', weight: 3, opacity: 0.8 }).addTo(mapa);
+  L.polyline([pontos[pontos.length - 1], [ORIGEM.lat, ORIGEM.lon]], {
+    color: '#c00000', weight: 3, opacity: 0.7, dashArray: '6 8'
+  }).addTo(mapa);
 }
 if (pontos.length) {
   mapa.fitBounds(pontos, { padding: [30, 30] });

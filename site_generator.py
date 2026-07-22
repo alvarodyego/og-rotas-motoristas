@@ -78,10 +78,11 @@ _ROTA_TEMPLATE = """<!doctype html>
 </header>
 <div class="aviso">{aviso}</div>
 <div class="resumo">
-  <span>Distancia original: <b>{dist_original:.2f} km</b></span>
-  <span>Distancia otimizada: <b>{dist_otimizada:.2f} km</b></span>
+  <span>Distancia original (ida e volta): <b>{dist_original:.2f} km</b></span>
+  <span>Distancia otimizada (ida e volta): <b>{dist_otimizada:.2f} km</b></span>
   <span>Economia: <b>{economia_km:.2f} km ({economia_pct:.1f}%)</b></span>
   <span>Saida ate a 1a parada: <b>{dist_origem_primeira:.2f} km</b></span>
+  <span>Volta ao ponto de partida: <b>{dist_retorno:.2f} km</b></span>
 </div>
 <div id="mapa"></div>
 <main>
@@ -148,6 +149,9 @@ PARADAS.forEach(p => {{
 }});
 if (pontos.length > 1) {{
   L.polyline(pontos, {{ color: '#1f4e78', weight: 3, opacity: 0.8 }}).addTo(mapa);
+  L.polyline([pontos[pontos.length - 1], [ORIGEM.lat, ORIGEM.lon]], {{
+    color: '#c00000', weight: 3, opacity: 0.7, dashArray: '6 8'
+  }}).addTo(mapa);
 }}
 if (pontos.length) {{
   mapa.fitBounds(pontos, {{ padding: [30, 30] }});
@@ -291,6 +295,7 @@ def _gerar_paginas(
             economia_km=resultado.economia_km,
             economia_pct=resultado.economia_percentual,
             dist_origem_primeira=resultado.distancia_origem_primeira_km,
+            dist_retorno=resultado.distancia_retorno_km,
             paradas_json=json.dumps(paradas, ensure_ascii=False),
             origem_json=origem_json,
         )
