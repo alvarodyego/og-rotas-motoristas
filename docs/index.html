@@ -48,22 +48,20 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>Cargas otimizadas</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:29</div>
+  <div class="sub">Atualizado em 22/07/2026 15:34</div>
 </header>
 <div class="filtro-data">
   <label for="seletorData">Ver rotas de:</label>
-  <select id="seletorData"><option value="2026-07-15">15/07/2026 (hoje)</option></select>
+  <select id="seletorData"><option value="2026-07-22">22/07/2026 (hoje)</option></select>
   <a href="index.html">Ir para hoje</a>
 </div>
 <main>
   <ul class="lista-rotas">
-    <li><a href="rotas/RMB-6G42-Motorista-728.html">RMB-6G42 - Motorista 728 <small>39 paradas &middot; 520.1 km</small></a></li>
-    <li><a href="rotas/RMB-6G45-Motorista-724.html">RMB-6G45 - Motorista 724 <small>69 paradas &middot; 378.0 km</small></a></li>
-    <li><a href="rotas/TVA-6H36-Motorista-720.html">TVA-6H36 - Motorista 720 <small>56 paradas &middot; 360.3 km</small></a></li>
-    <li><a href="rotas/RMB-6G43-Motorista-730.html">RMB-6G43 - Motorista 730 <small>49 paradas &middot; 261.6 km</small></a></li>
-    <li><a href="rotas/RMB-6G40-Motorista-721.html">RMB-6G40 - Motorista 721 <small>27 paradas &middot; 29.6 km</small></a></li>
-    <li><a href="rotas/TVA-5A26-Motorista-729.html">TVA-5A26 - Motorista 729 <small>28 paradas &middot; 29.0 km</small></a></li>
-    <li><a href="rotas/TVA-6H37-Motorista-726.html">TVA-6H37 - Motorista 726 <small>19 paradas &middot; 23.4 km</small></a></li>
+    <li><a href="rotas/TVA-6H36-Motorista-720.html">TVA-6H36 - Motorista 720 <small>40 paradas &middot; 133.3 km</small></a></li>
+    <li><a href="rotas/RMB-6G45-Motorista-724.html">RMB-6G45 - Motorista 724 <small>28 paradas &middot; 45.3 km</small></a></li>
+    <li><a href="rotas/RMB-6G43-Motorista-730.html">RMB-6G43 - Motorista 730 <small>36 paradas &middot; 34.3 km</small></a></li>
+    <li><a href="rotas/OLL-3030-Sem-motorista-definido.html">OLL-3030 - Sem motorista definido <small>1 paradas &middot; 12.6 km</small></a></li>
+    <li><a href="rotas/TVA-4H02-Sem-motorista-definido.html">TVA-4H02 - Sem motorista definido <small>4 paradas &middot; 43.1 km</small></a></li>
   </ul>
 </main>
 <footer>Gerado automaticamente a partir do relatorio do dia.</footer>
@@ -78,7 +76,7 @@ fetch('historico/manifest.json').then(r => r.json()).then(dias => {
     opt.textContent = d.data_br + ' (' + d.rotas + ' rota(s))';
     sel.appendChild(opt);
   });
-  sel.value = '2026-07-15';
+  sel.value = '2026-07-22';
   sel.addEventListener('change', () => {
     window.location.href = 'historico/' + sel.value + '/index.html';
   });
