@@ -1,3 +1,4 @@
 .watch_state.json
+watcher.log
 __pycache__/
 *.pyc
