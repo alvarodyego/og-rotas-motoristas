@@ -1,0 +1,3 @@
+# Este projeto usa apenas a biblioteca padrao do Python (3.10+).
+# Nenhuma dependencia externa e necessaria para parsing.py, route_optimizer.py,
+# site_generator.py ou watch_and_publish.py.
