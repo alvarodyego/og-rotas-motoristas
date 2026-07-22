@@ -31,6 +31,36 @@ from route_optimizer import ResultadoRota
 
 MARCA = "Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken"
 
+# Config publica do Firebase (projeto "rotacertaog") -- NAO e' segredo, e'
+# seguro embutir no HTML/JS publico. A seguranca de verdade vem das regras
+# do Firestore (configuradas direto no console do Firebase), nao desses
+# valores. Usado pra sincronizar o status de entrega (Entregue/Devolucao/
+# Fechado) entre o celular do motorista e o painel do supervisor.
+FIREBASE_CONFIG = {
+    "apiKey": "AIzaSyDZpcc1GgdbknHdkuI4dOx1myDR6PsLPic",
+    "authDomain": "rotacertaog.firebaseapp.com",
+    "projectId": "rotacertaog",
+    "storageBucket": "rotacertaog.firebasestorage.app",
+    "messagingSenderId": "1048075742585",
+    "appId": "1:1048075742585:web:424f99f9a29fa0f23593a8",
+}
+FIRESTORE_COLECAO_STATUS = "status_entregas"
+FIRESTORE_COLECAO_MOTORISTAS = "motoristas"
+
+# Faixa de numeros de motorista da empresa (720 a 731). Usado pra pre-gerar
+# senhas padrao na pagina de administracao. NAO e' derivado dos dados do
+# dia -- e' o quadro fixo de motoristas, independente de quem estiver
+# escalado numa rota especifica hoje.
+NUMERO_MOTORISTA_MIN = 720
+NUMERO_MOTORISTA_MAX = 731
+
+
+def senha_padrao(numero: int) -> str:
+    """Gera a senha padrao de um motorista no formato pedido (ex: 720 ->
+    '720OG0', 731 -> '731OG1'): o numero do motorista + 'OG' + o ultimo
+    digito do numero."""
+    return f"{numero}OG{numero % 10}"
+
 _ESTILO = """
 :root { --azul: #1f4e78; --azul-claro: #eaf1f8; --texto: #1a1a1a; --borda: #d9dfe6; }
 * { box-sizing: border-box; }
@@ -79,6 +109,37 @@ ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; m
 ul.lista-rotas li { margin-bottom: 10px; }
 ul.lista-rotas a { display: block; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; text-decoration: none; color: var(--texto); font-weight: bold; }
 ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margin-top: 4px; }
+.link-painel { display: block; text-align: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); font-size: 0.85rem; }
+.painel-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 10px; padding: 12px; }
+.painel-rota h2 { margin: 0 0 8px 0; font-size: 0.95rem; }
+.painel-contagem { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; font-weight: bold; margin-bottom: 8px; }
+.painel-contagem .c-entregue { color: #1e7e34; }
+.painel-contagem .c-devolucao { color: #c00000; }
+.painel-contagem .c-fechado { color: #b8860b; }
+.painel-contagem .c-pendente { color: #888; }
+.painel-linha { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; padding: 5px 0; border-top: 1px solid #f0f0f0; }
+.painel-linha .p-status { font-weight: bold; white-space: nowrap; }
+.painel-linha.status-entregue .p-status { color: #1e7e34; }
+.painel-linha.status-devolucao .p-status { color: #c00000; }
+.painel-linha.status-fechado .p-status { color: #b8860b; }
+.painel-linha.status-pendente .p-status { color: #bbb; }
+.painel-atualizado { text-align: center; font-size: 0.7rem; color: #888; padding: 8px; }
+.bloqueio { display: none; position: fixed; inset: 0; background: var(--azul); color: #fff; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+body.bloqueado .bloqueio { display: flex; }
+body.bloqueado > *:not(.bloqueio) { display: none !important; }
+.bloqueio-caixa { max-width: 320px; width: 100%; text-align: center; }
+.bloqueio-caixa h2 { margin: 0 0 4px 0; font-size: 1.1rem; }
+.bloqueio-caixa p { font-size: 0.8rem; opacity: 0.85; margin: 0 0 16px 0; }
+.bloqueio-caixa input { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 1rem; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
+.bloqueio-caixa button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #fff; color: var(--azul); font-weight: bold; font-size: 1rem; cursor: pointer; }
+.bloqueio-erro { color: #ffd6d6; font-size: 0.78rem; margin-top: 10px; min-height: 1em; }
+.admin-linha { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 8px 10px; }
+.admin-linha span { min-width: 40px; font-weight: bold; font-size: 0.85rem; }
+.admin-linha input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.admin-linha button { padding: 8px 12px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
+.admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+.admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
 """
 
 _ROTA_TEMPLATE = """<!doctype html>
@@ -94,11 +155,12 @@ _ROTA_TEMPLATE = """<!doctype html>
 <style>{estilo}</style>
 </head>
 <body>
-<header>
+{bloqueio_html}<header>
   <h1>{rotulo}</h1>
   <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
+{link_painel}
 {aviso_linha_reta}<div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
@@ -113,19 +175,32 @@ _ROTA_TEMPLATE = """<!doctype html>
 <footer><a href="../index.html">Ver todas as rotas desta data</a></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const PARADAS = {paradas_json};
 const ORIGEM = {origem_json};
 const TRACADO_IDA = {tracado_ida_json};
 const TRACADO_VOLTA = {tracado_volta_json};
 const DATA_ISO = '{data_atual_iso}';
+const ROTULO_ROTA = {rotulo_json};
+const NUMERO_MOTORISTA = {numero_motorista_json};
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
-// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
-// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
-// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
-// rota de um dia futuro com o mesmo cliente.
+// depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
+// funciona ate' sem internet no momento do clique) e no Firestore (nuvem,
+// pra sincronizar entre o celular do motorista e o painel do supervisor).
+// Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
+// apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = {{ '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' }};
+
+let db = null;
+try {{
+  firebase.initializeApp({firebase_config_json});
+  db = firebase.firestore();
+}} catch (e) {{
+  console.error('Firebase nao inicializou (marcacao vai funcionar so neste aparelho):', e);
+}}
 
 function chaveStatus(codigo) {{
   return 'status_' + DATA_ISO + '_' + codigo;
@@ -133,6 +208,35 @@ function chaveStatus(codigo) {{
 function lerStatus(codigo) {{
   return localStorage.getItem(chaveStatus(codigo)) || '';
 }}
+function salvarStatusRemoto(p, status) {{
+  if (!db) return;
+  const ref = db.collection('{firestore_colecao}').doc(DATA_ISO + '_' + p.codigo);
+  if (status) {{
+    ref.set({{
+      data: DATA_ISO,
+      rotulo: ROTULO_ROTA,
+      codigo: p.codigo,
+      cliente: p.cliente,
+      seq: p.seq,
+      status: status,
+      atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
+    }}).catch(err => console.error('Falha ao sincronizar status:', err));
+  }} else {{
+    ref.delete().catch(err => console.error('Falha ao limpar status remoto:', err));
+  }}
+}}
+function iconeNumerado(numero, cor) {{
+  cor = cor || '#1f4e78';
+  return L.divIcon({{
+    className: 'icone-parada',
+    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
+          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
+          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  }});
+}}
+
 function aplicarStatus(li, status, marker, numero) {{
   li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
   li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
@@ -146,6 +250,7 @@ function aplicarStatus(li, status, marker, numero) {{
   }}
 }}
 
+function iniciarPagina() {{
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', {{ preferCanvas: true }});
 L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
@@ -154,18 +259,6 @@ L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
   keepBuffer: 3,
   attribution: '&copy; OpenStreetMap contributors'
 }}).addTo(mapa);
-
-function iconeNumerado(numero, cor) {{
-  cor = cor || '#1f4e78';
-  return L.divIcon({{
-    className: 'icone-parada',
-    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
-          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
-          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13]
-  }});
-}}
 
 const iconeOrigem = L.divIcon({{
   className: 'icone-origem',
@@ -180,6 +273,8 @@ const pontos = [[ORIGEM.lat, ORIGEM.lon]];
 L.marker([ORIGEM.lat, ORIGEM.lon], {{ icon: iconeOrigem }})
   .bindPopup('<b>Saida do caminhao</b>')
   .addTo(mapa);
+
+const referencias = {{}};  // codigo -> {{ li, marker }}, usado pra aplicar o status vindo do Firestore
 
 PARADAS.forEach(p => {{
   const li = document.createElement('li');
@@ -210,6 +305,7 @@ PARADAS.forEach(p => {{
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
     .addTo(mapa);
   aplicarStatus(li, statusInicial, marker, p.seq);
+  referencias[p.codigo] = {{ li, marker }};
   li.querySelectorAll('.status-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{
       const status = btn.dataset.status;
@@ -220,9 +316,28 @@ PARADAS.forEach(p => {{
         localStorage.removeItem(chaveStatus(p.codigo));
       }}
       aplicarStatus(li, novo, marker, p.seq);
+      salvarStatusRemoto(p, novo);
     }});
   }});
 }});
+
+// Ao abrir a pagina, busca no Firestore o status mais recente de cada
+// parada (pode ter sido marcado de outro aparelho) e sobrescreve o que
+// veio do localStorage, que e' so' um cache instantaneo local.
+if (db) {{
+  db.collection('{firestore_colecao}').where('data', '==', DATA_ISO).get().then(snapshot => {{
+    snapshot.forEach(doc => {{
+      const dados = doc.data();
+      const ref = referencias[dados.codigo];
+      if (ref && dados.status && dados.status !== lerStatus(dados.codigo)) {{
+        localStorage.setItem(chaveStatus(dados.codigo), dados.status);
+        const seqNum = parseInt(ref.li.querySelector('.num').textContent, 10);
+        aplicarStatus(ref.li, dados.status, ref.marker, seqNum);
+      }}
+    }});
+  }}).catch(err => console.error('Falha ao buscar status remoto:', err));
+}}
+
 if (pontos.length > 1) {{
   // TRACADO_IDA/TRACADO_VOLTA vem do OSRM (segue as ruas de verdade). Se o
   // servico falhou na hora de gerar a pagina, caimos para uma linha reta
@@ -236,6 +351,47 @@ if (pontos.length > 1) {{
 }}
 if (pontos.length) {{
   mapa.fitBounds(pontos, {{ padding: [30, 30] }});
+}}
+}}  // fim de iniciarPagina()
+
+// --- controle de acesso por senha (por motorista) ---------------------
+// Protecao simples: impede abertura casual do link. Nao e' seguranca forte
+// (o codigo roda todo no navegador, alguem tecnico poderia contornar), mas
+// evita que quem receba o link por engano veja dados do cliente. A senha
+// fica guardada no Firestore (colecao "{firestore_colecao_motoristas}"),
+// nunca no codigo desta pagina.
+if (!NUMERO_MOTORISTA) {{
+  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
+}} else {{
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+  if (localStorage.getItem(chaveDesbloqueio) === 'sim') {{
+    iniciarPagina();
+  }} else {{
+    document.body.classList.add('bloqueado');
+    const form = document.getElementById('formSenha');
+    const erroEl = document.getElementById('bloqueioErro');
+    form.addEventListener('submit', ev => {{
+      ev.preventDefault();
+      if (!db) {{
+        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+        return;
+      }}
+      const senhaDigitada = document.getElementById('campoSenha').value;
+      erroEl.textContent = 'Verificando...';
+      db.collection('{firestore_colecao_motoristas}').doc(NUMERO_MOTORISTA).get().then(doc => {{
+        if (doc.exists && doc.data().senha === senhaDigitada) {{
+          localStorage.setItem(chaveDesbloqueio, 'sim');
+          document.body.classList.remove('bloqueado');
+          iniciarPagina();
+        }} else {{
+          erroEl.textContent = 'Senha incorreta.';
+        }}
+      }}).catch(err => {{
+        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+        console.error(err);
+      }});
+    }});
+  }}
 }}
 </script>
 </body>
@@ -262,7 +418,7 @@ _INDEX_TEMPLATE = """<!doctype html>
   <select id="seletorData"><option value="{data_atual_iso}">{data_atual_br} (hoje)</option></select>
   <a href="{hoje_rel}">Ir para hoje</a>
 </div>
-<main>
+{link_painel_index}<main>
   <ul class="lista-rotas">
     {itens}
   </ul>
@@ -289,6 +445,336 @@ fetch('{manifest_rel}').then(r => r.json()).then(dias => {{
 </html>
 """
 
+_PAINEL_TEMPLATE = """<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
+<title>Painel do supervisor - {data_atual_br}</title>
+<style>{estilo}</style>
+</head>
+<body class="bloqueado">
+<div class="bloqueio"><div class="bloqueio-caixa">
+  <h2>Painel do supervisor</h2>
+  <p>Digite a senha administrativa pra continuar.</p>
+  <form id="formSenhaAdmin">
+    <input type="password" id="campoSenhaAdmin" placeholder="Senha administrativa" autocomplete="current-password" required>
+    <button type="submit">Entrar</button>
+  </form>
+  <div class="bloqueio-erro" id="bloqueioErroAdmin"></div>
+</div></div>
+<header>
+  <h1>Painel do supervisor</h1>
+  <div class="marca">{marca}</div>
+  <div class="sub">Rotas de {data_atual_br}</div>
+</header>
+<main id="painel"></main>
+<div class="painel-atualizado" id="statusConexao">Conectando ao painel em tempo real...</div>
+<footer><a href="index.html">Ver lista de rotas</a></footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const ROTAS = {rotas_json};
+const DATA_ISO = '{data_atual_iso}';
+const painelEl = document.getElementById('painel');
+const statusConexaoEl = document.getElementById('statusConexao');
+
+let db = null;
+try {{
+  firebase.initializeApp({firebase_config_json});
+  db = firebase.firestore();
+}} catch (e) {{
+  statusConexaoEl.textContent = 'Nao foi possivel conectar ao painel em tempo real.';
+  console.error(e);
+}}
+
+// Controle de acesso: pede a senha administrativa (guardada no Firestore,
+// colecao "{firestore_colecao_motoristas}", documento "admin"). Fica
+// desbloqueado so' durante esta aba/sessao (sessionStorage), nao para
+// sempre -- ao fechar o navegador, pede a senha de novo.
+if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
+  document.body.classList.remove('bloqueado');
+}} else {{
+  document.getElementById('formSenhaAdmin').addEventListener('submit', ev => {{
+    ev.preventDefault();
+    const erroEl = document.getElementById('bloqueioErroAdmin');
+    if (!db) {{
+      erroEl.textContent = 'Sem conexao. Confira sua internet e tente de novo.';
+      return;
+    }}
+    const senhaDigitada = document.getElementById('campoSenhaAdmin').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('{firestore_colecao_motoristas}').doc('admin').get().then(doc => {{
+      if (doc.exists && doc.data().senha === senhaDigitada) {{
+        sessionStorage.setItem('painel_desbloqueado', 'sim');
+        document.body.classList.remove('bloqueado');
+      }} else {{
+        erroEl.textContent = 'Senha incorreta.';
+      }}
+    }}).catch(err => {{
+      erroEl.textContent = 'Erro ao verificar a senha.';
+      console.error(err);
+    }});
+  }});
+}}
+
+const RESPOSTA_STATUS = {{ entregue: 'Entregue', devolucao: 'Devolucao', fechado: 'Voltar depois/Fechado', '': 'Pendente' }};
+
+function renderizar(statusPorCodigo) {{
+  painelEl.innerHTML = '';
+  ROTAS.forEach(rota => {{
+    const contagem = {{ entregue: 0, devolucao: 0, fechado: 0, pendente: 0 }};
+    const linhas = rota.paradas.map(p => {{
+      const status = statusPorCodigo[p.codigo] || '';
+      contagem[status || 'pendente']++;
+      return '<div class="painel-linha status-' + (status || 'pendente') + '">' +
+        '<span class="p-seq">' + p.seq + '. ' + p.cliente + '</span>' +
+        '<span class="p-status">' + RESPOSTA_STATUS[status] + '</span>' +
+        '</div>';
+    }}).join('');
+    const card = document.createElement('div');
+    card.className = 'painel-rota';
+    card.innerHTML =
+      '<h2>' + rota.rotulo + '</h2>' +
+      '<div class="painel-contagem">' +
+        '<span class="c-entregue">Entregues: ' + contagem.entregue + '</span>' +
+        '<span class="c-devolucao">Devolucoes: ' + contagem.devolucao + '</span>' +
+        '<span class="c-fechado">Fechados: ' + contagem.fechado + '</span>' +
+        '<span class="c-pendente">Pendentes: ' + contagem.pendente + '</span>' +
+      '</div>' +
+      '<div class="painel-linhas">' + linhas + '</div>';
+    painelEl.appendChild(card);
+  }});
+}}
+
+// Ja renderiza a lista completa (todos "pendente") antes mesmo do Firestore
+// responder, pra pagina nao ficar em branco -- e depois atualiza sozinha,
+// em tempo real, toda vez que algum motorista marcar algo (onSnapshot).
+renderizar({{}});
+
+if (db) {{
+  db.collection('{firestore_colecao}').where('data', '==', DATA_ISO)
+    .onSnapshot(snapshot => {{
+      const statusPorCodigo = {{}};
+      snapshot.forEach(doc => {{
+        const d = doc.data();
+        statusPorCodigo[d.codigo] = d.status;
+      }});
+      renderizar(statusPorCodigo);
+      const agora = new Date().toLocaleTimeString('pt-BR', {{ hour: '2-digit', minute: '2-digit', second: '2-digit' }});
+      statusConexaoEl.textContent = 'Atualizado automaticamente às ' + agora;
+    }}, err => {{
+      statusConexaoEl.textContent = 'Erro ao conectar ao painel em tempo real.';
+      console.error(err);
+    }});
+}}
+</script>
+</body>
+</html>
+"""
+
+
+_ADMIN_TEMPLATE = """<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
+<title>Administracao de senhas</title>
+<style>{estilo}</style>
+</head>
+<body class="bloqueado">
+<div class="bloqueio"><div class="bloqueio-caixa">
+  <h2>Administracao</h2>
+  <p>Digite a senha administrativa pra continuar.</p>
+  <form id="formSenhaAdmin">
+    <input type="password" id="campoSenhaAdmin" placeholder="Senha administrativa" autocomplete="current-password" required>
+    <button type="submit">Entrar</button>
+  </form>
+  <div class="bloqueio-erro" id="bloqueioErroAdmin"></div>
+</div></div>
+<header>
+  <h1>Administracao de senhas</h1>
+  <div class="marca">{marca}</div>
+</header>
+<main>
+  <div class="admin-topo">
+    <button id="btnGerarPadrao">Gerar senha padrao pra todo mundo</button>
+  </div>
+  <div class="admin-msg" id="adminMsg"></div>
+  <div id="listaMotoristas"></div>
+  <div class="admin-linha" style="margin-top:16px;">
+    <span>Admin</span>
+    <input type="text" id="novaSenhaAdmin" placeholder="Nova senha administrativa">
+    <button id="btnSalvarAdmin">Salvar</button>
+  </div>
+</main>
+<footer><a href="index.html">Ver lista de rotas</a></footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const NUMERO_MIN = {numero_min};
+const NUMERO_MAX = {numero_max};
+const adminMsgEl = document.getElementById('adminMsg');
+
+let db = null;
+try {{
+  firebase.initializeApp({firebase_config_json});
+  db = firebase.firestore();
+}} catch (e) {{
+  console.error(e);
+}}
+
+function senhaPadrao(numero) {{
+  return numero + 'OG' + (numero % 10);
+}}
+
+function mensagem(texto, ehErro) {{
+  adminMsgEl.textContent = texto;
+  adminMsgEl.style.color = ehErro ? '#c00000' : '#1e7e34';
+}}
+
+function montarLinha(numero) {{
+  const linha = document.createElement('div');
+  linha.className = 'admin-linha';
+  linha.innerHTML =
+    '<span>' + numero + '</span>' +
+    '<input type="text" id="senha-' + numero + '" placeholder="(sem senha definida)">' +
+    '<button data-numero="' + numero + '">Salvar</button>';
+  linha.querySelector('button').addEventListener('click', () => {{
+    const valor = document.getElementById('senha-' + numero).value.trim();
+    if (!valor) {{ mensagem('Digite uma senha antes de salvar (motorista ' + numero + ').', true); return; }}
+    db.collection('{firestore_colecao_motoristas}').doc(String(numero)).set({{ senha: valor }})
+      .then(() => mensagem('Senha do motorista ' + numero + ' salva.', false))
+      .catch(err => {{ mensagem('Erro ao salvar a senha do motorista ' + numero + '.', true); console.error(err); }});
+  }});
+  return linha;
+}}
+
+function carregarMotoristas() {{
+  const listaEl = document.getElementById('listaMotoristas');
+  listaEl.innerHTML = '';
+  for (let numero = NUMERO_MIN; numero <= NUMERO_MAX; numero++) {{
+    listaEl.appendChild(montarLinha(numero));
+    db.collection('{firestore_colecao_motoristas}').doc(String(numero)).get().then(doc => {{
+      if (doc.exists && doc.data().senha) {{
+        const campo = document.getElementById('senha-' + numero);
+        if (campo) campo.value = doc.data().senha;
+      }}
+    }}).catch(err => console.error(err));
+  }}
+}}
+
+document.getElementById('btnGerarPadrao').addEventListener('click', () => {{
+  if (!confirm('Isso substitui a senha de TODOS os motoristas (' + NUMERO_MIN + ' a ' + NUMERO_MAX + ') pelo padrao. Continuar?')) return;
+  let pendentes = 0;
+  for (let numero = NUMERO_MIN; numero <= NUMERO_MAX; numero++) {{
+    pendentes++;
+    const senha = senhaPadrao(numero);
+    db.collection('{firestore_colecao_motoristas}').doc(String(numero)).set({{ senha: senha }})
+      .then(() => {{
+        const campo = document.getElementById('senha-' + numero);
+        if (campo) campo.value = senha;
+        pendentes--;
+        if (pendentes === 0) mensagem('Senhas padrao geradas para todos os motoristas.', false);
+      }})
+      .catch(err => {{ mensagem('Erro ao gerar as senhas padrao.', true); console.error(err); }});
+  }}
+}});
+
+document.getElementById('btnSalvarAdmin').addEventListener('click', () => {{
+  const valor = document.getElementById('novaSenhaAdmin').value.trim();
+  if (!valor) {{ mensagem('Digite a nova senha administrativa antes de salvar.', true); return; }}
+  db.collection('{firestore_colecao_motoristas}').doc('admin').set({{ senha: valor }})
+    .then(() => {{ mensagem('Senha administrativa atualizada.', false); document.getElementById('novaSenhaAdmin').value = ''; }})
+    .catch(err => {{ mensagem('Erro ao salvar a senha administrativa.', true); console.error(err); }});
+}});
+
+if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
+  document.body.classList.remove('bloqueado');
+  carregarMotoristas();
+}} else {{
+  document.getElementById('formSenhaAdmin').addEventListener('submit', ev => {{
+    ev.preventDefault();
+    const erroEl = document.getElementById('bloqueioErroAdmin');
+    if (!db) {{
+      erroEl.textContent = 'Sem conexao. Confira sua internet e tente de novo.';
+      return;
+    }}
+    const senhaDigitada = document.getElementById('campoSenhaAdmin').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('{firestore_colecao_motoristas}').doc('admin').get().then(doc => {{
+      if (doc.exists && doc.data().senha === senhaDigitada) {{
+        sessionStorage.setItem('painel_desbloqueado', 'sim');
+        document.body.classList.remove('bloqueado');
+        carregarMotoristas();
+      }} else {{
+        erroEl.textContent = 'Senha incorreta.';
+      }}
+    }}).catch(err => {{
+      erroEl.textContent = 'Erro ao verificar a senha.';
+      console.error(err);
+    }});
+  }});
+}}
+</script>
+</body>
+</html>
+"""
+
+
+def gerar_admin(docs_dir: str) -> None:
+    """Gera docs/admin.html: pagina protegida pela senha administrativa,
+    onde da pra ver/trocar a senha de cada motorista (720 a 731) e gerar as
+    senhas padrao de uma vez."""
+    html_admin = _ADMIN_TEMPLATE.format(
+        estilo=_ESTILO,
+        marca=MARCA,
+        numero_min=NUMERO_MOTORISTA_MIN,
+        numero_max=NUMERO_MOTORISTA_MAX,
+        firebase_config_json=json.dumps(FIREBASE_CONFIG),
+        firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+    )
+    with open(os.path.join(docs_dir, "admin.html"), "w", encoding="utf-8") as f:
+        f.write(html_admin)
+
+
+def gerar_painel(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    data_iso: str,
+    data_br: str,
+    gerado_em: str,
+) -> None:
+    """Gera docs/painel.html: uma pagina so' pro supervisor, com o status de
+    entrega de TODAS as rotas do dia, atualizando sozinha em tempo real
+    (Firestore onSnapshot) conforme os motoristas forem marcando."""
+    rotas_json = [
+        {
+            "rotulo": rotulo_rota(resultado),
+            "paradas": [
+                {"seq": p.sequencia, "codigo": p.entrega.codigo_cliente, "cliente": p.entrega.cliente}
+                for p in resultado.ordem_otimizada
+            ],
+        }
+        for _, resultado in sorted(resultados.items())
+    ]
+    html_painel = _PAINEL_TEMPLATE.format(
+        estilo=_ESTILO,
+        marca=MARCA,
+        data_atual_iso=data_iso,
+        data_atual_br=data_br,
+        rotas_json=json.dumps(rotas_json, ensure_ascii=False),
+        firebase_config_json=json.dumps(FIREBASE_CONFIG),
+        firestore_colecao=FIRESTORE_COLECAO_STATUS,
+        firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+    )
+    with open(os.path.join(docs_dir, "painel.html"), "w", encoding="utf-8") as f:
+        f.write(html_painel)
+
 
 _CODIGO_MOTORISTA_RE = re.compile(r"(\d+)")
 
@@ -305,6 +791,17 @@ def rotulo_rota(resultado: ResultadoRota) -> str:
     if codigo_m:
         return f"{placa} - Motorista {codigo_m.group(1)}"
     return f"{placa} - Sem motorista definido"
+
+
+def numero_motorista(resultado: ResultadoRota) -> str | None:
+    """Numero do motorista dessa rota (ex: '720'), usado pra saber qual
+    senha checar. None se a rota nao tiver motorista definido -- nesse caso
+    nao da pra proteger a pagina com senha (nao ha dono definido)."""
+    if not resultado.ordem_otimizada:
+        return None
+    primeira = resultado.ordem_otimizada[0].entrega
+    codigo_m = _CODIGO_MOTORISTA_RE.search(primeira.motorista_nome or "")
+    return codigo_m.group(1) if codigo_m else None
 
 
 def _slug(texto: str) -> str:
@@ -340,6 +837,7 @@ def _gerar_paginas(
     hoje_rel: str,
     data_atual_iso: str,
     data_atual_br: str,
+    painel_rel: str | None = None,
 ) -> list[str]:
     """Escreve <base_dir>/index.html e <base_dir>/rotas/*.html. Usada tanto
     para a pagina 'de hoje' (docs/) quanto para a copia arquivada
@@ -375,11 +873,31 @@ def _gerar_paginas(
             'menos precisos que o normal.</div>\n'
         ) if not resultado.usou_distancia_real else ""
 
+        link_painel = (
+            f'<a class="link-painel" href="{painel_rel}">Ver painel do supervisor (todas as rotas)</a>'
+            if painel_rel else ""
+        )
+
+        numero_mot = numero_motorista(resultado)
+        bloqueio_html = (
+            '<div class="bloqueio"><div class="bloqueio-caixa">'
+            '<h2>Rota protegida</h2>'
+            '<p>Digite a senha do motorista pra ver essa rota.</p>'
+            '<form id="formSenha">'
+            '<input type="password" id="campoSenha" placeholder="Senha" autocomplete="current-password" required>'
+            '<button type="submit">Entrar</button>'
+            '</form>'
+            '<div class="bloqueio-erro" id="bloqueioErro"></div>'
+            '</div></div>\n'
+        ) if numero_mot else ""
+
         html_rota = _ROTA_TEMPLATE.format(
             rotulo=rotulo,
+            rotulo_json=json.dumps(rotulo, ensure_ascii=False),
             estilo=_ESTILO,
             marca=MARCA,
             gerado_em=gerado_em,
+            link_painel=link_painel,
             aviso_linha_reta=aviso_linha_reta,
             dist_original=resultado.distancia_total_original_km,
             dist_otimizada=resultado.distancia_total_otimizada_km,
@@ -392,6 +910,11 @@ def _gerar_paginas(
             tracado_ida_json=json.dumps(resultado.tracado_ida),
             tracado_volta_json=json.dumps(resultado.tracado_volta),
             data_atual_iso=data_atual_iso,
+            firebase_config_json=json.dumps(FIREBASE_CONFIG),
+            firestore_colecao=FIRESTORE_COLECAO_STATUS,
+            firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+            numero_motorista_json=json.dumps(numero_mot),
+            bloqueio_html=bloqueio_html,
         )
         caminho_rota = os.path.join(rotas_dir, f"{slug}.html")
         with open(caminho_rota, "w", encoding="utf-8") as f:
@@ -404,6 +927,10 @@ def _gerar_paginas(
             f'{resultado.distancia_total_otimizada_km:.1f} km</small></a></li>'
         )
 
+    link_painel_index = (
+        '<a class="link-painel" href="painel.html">Ver painel do supervisor (todas as rotas)</a>'
+        if painel_rel else ""
+    )
     html_index = _INDEX_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
@@ -415,6 +942,7 @@ def _gerar_paginas(
         hoje_rel=hoje_rel,
         data_atual_iso=data_atual_iso,
         data_atual_br=data_atual_br,
+        link_painel_index=link_painel_index,
     )
     caminho_index = os.path.join(base_dir, "index.html")
     with open(caminho_index, "w", encoding="utf-8") as f:
@@ -499,8 +1027,15 @@ def gerar_site(
             hoje_rel="index.html",
             data_atual_iso=data_iso,
             data_atual_br=data_br,
+            painel_rel="../painel.html",
         )
         arquivos_gerados.extend(arquivos_hoje)
+
+        gerar_painel(resultados, docs_dir, data_iso, data_br, gerado_em)
+        arquivos_gerados.append("painel.html")
+
+        gerar_admin(docs_dir)
+        arquivos_gerados.append("admin.html")
 
     # Copia arquivada do dia, para o filtro de data poder consultar depois.
     arquivos_dia = _gerar_paginas(
