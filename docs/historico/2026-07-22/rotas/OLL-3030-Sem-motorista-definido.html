@@ -51,7 +51,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>OLL-3030 - Sem motorista definido</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:34</div>
+  <div class="sub">Atualizado em 22/07/2026 15:43</div>
 </header>
 <div id="mapa"></div>
 <main>
@@ -68,7 +68,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01002648", "cliente": "DONA MARIA BEACH", "endereco": "AL ARAGUAIA, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215596, "lon": -48.218502, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01002648", "cliente": "DONA MARIA BEACH", "endereco": "AL ARAGUAIA, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215596, "lon": -48.218502, "dist_anterior_km": 6.528899999999999, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.221045, -48.247636], [-7.219996, -48.247447], [-7.214238, -48.244759], [-7.208713, -48.24213], [-7.208031, -48.241507], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208322, -48.236399], [-7.208208, -48.234595], [-7.208017, -48.23381], [-7.203712, -48.223746], [-7.203122, -48.221047], [-7.203237, -48.220862], [-7.20462, -48.220437], [-7.206323, -48.22098], [-7.207198, -48.220933], [-7.20779, -48.220716], [-7.2081, -48.220351], [-7.208235, -48.21947], [-7.208586, -48.218879], [-7.210222, -48.217039], [-7.210856, -48.216687], [-7.212184, -48.216791], [-7.213627, -48.216616], [-7.21562, -48.218454]];
 const TRACADO_VOLTA = [[-7.21562, -48.218454], [-7.216572, -48.21865], [-7.22074, -48.218613], [-7.220818, -48.228165], [-7.220212, -48.229531], [-7.220184, -48.230136], [-7.223462, -48.241241], [-7.223299, -48.24221], [-7.220508, -48.24796], [-7.229005, -48.251802], [-7.232203, -48.25296], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.229102, -48.251436], [-7.22693, -48.250414]];
@@ -110,7 +110,9 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 PARADAS.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
-  const distTxt = (p.dist_proxima_km === null) ? 'ultima parada'
+  const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
+  const chegadaTxt = 'de ' + origemTxt + ': ' + p.dist_anterior_km.toFixed(2) + ' km';
+  const proximaTxt = (p.dist_proxima_km === null) ? 'ultima parada'
     : ('proxima: ' + p.dist_proxima_km.toFixed(2) + ' km');
   const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon;
   li.innerHTML =
@@ -119,7 +121,7 @@ PARADAS.forEach(p => {
       '<div class="codigo">' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
-      '<div class="meta">' + distTxt + '</div>' +
+      '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
