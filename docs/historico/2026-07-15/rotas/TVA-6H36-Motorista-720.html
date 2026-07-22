@@ -39,6 +39,17 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada .meta { font-size: 0.68rem; color: var(--azul); margin-top: 4px; }
 .parada .btn-maps { display: inline-block; margin-top: 8px; padding: 6px 12px; background: var(--azul); color: #fff; border-radius: 6px; text-decoration: none; font-size: 0.78rem; font-weight: bold; }
 .parada .btn-maps:visited { color: #fff; }
+.parada.status-entregue { border-left: 4px solid #1e7e34; }
+.parada.status-devolucao { border-left: 4px solid #c00000; }
+.parada.status-fechado { border-left: 4px solid #b8860b; }
+.status-botoes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.status-btn { flex: 1; min-width: 84px; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #fff; cursor: pointer; text-align: center; }
+.status-btn.entregue { border: 1.5px solid #1e7e34; color: #1e7e34; }
+.status-btn.devolucao { border: 1.5px solid #c00000; color: #c00000; }
+.status-btn.fechado { border: 1.5px solid #b8860b; color: #b8860b; }
+.status-btn.entregue.ativo { background: #1e7e34; color: #fff; }
+.status-btn.devolucao.ativo { background: #c00000; color: #fff; }
+.status-btn.fechado.ativo { background: #b8860b; color: #fff; }
 footer { text-align: center; font-size: 0.72rem; color: #888; padding: 16px; }
 footer a { color: var(--azul); }
 ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; margin: 0 auto; }
@@ -51,7 +62,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <header>
   <h1>TVA-6H36 - Motorista 720</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 15:42</div>
+  <div class="sub">Atualizado em 22/07/2026 16:01</div>
 </header>
 <div id="mapa"></div>
 <main>
@@ -72,6 +83,28 @@ const PARADAS = [{"seq": 1, "codigo": "00420351", "cliente": "BR CONVENIENCIA", 
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.093243, -48.171055], [-7.068366, -48.119774], [-7.032281, -48.103509], [-6.968575, -48.099529], [-6.915281, -48.052834], [-6.883868, -47.994352], [-6.839148, -47.946641], [-6.822698, -47.819428], [-6.737125, -47.778172], [-6.654688, -47.721095], [-6.622235, -47.562788], [-6.574095, -47.50935], [-6.562472, -47.473908], [-6.561412, -47.473102], [-6.561241, -47.474977], [-6.559844, -47.476431], [-6.562828, -47.46477], [-6.542226, -47.48522], [-6.486731, -47.482588], [-6.430572, -47.462285], [-6.410416, -47.443566], [-6.345733, -47.424768], [-6.344542, -47.424598], [-6.343768, -47.424498], [-6.344119, -47.424112], [-6.343473, -47.423597], [-6.343471, -47.423601], [-6.34079, -47.424071], [-6.340451, -47.425497], [-6.337961, -47.428213], [-6.3375, -47.430213], [-6.340132, -47.431024], [-6.332288, -47.426871], [-6.332251, -47.426599], [-6.331591, -47.421797], [-6.330907, -47.416563], [-6.331669, -47.416533], [-6.331846, -47.415355], [-6.329069, -47.418072], [-6.32816, -47.41809], [-6.328063, -47.415848], [-6.326905, -47.413251], [-6.326243, -47.413845], [-6.323118, -47.417953], [-6.323113, -47.418825], [-6.320763, -47.417809], [-6.317739, -47.417939], [-6.31625, -47.418086], [-6.315605, -47.421894], [-6.314767, -47.422717], [-6.314073, -47.422996], [-6.313962, -47.42196], [-6.32304, -47.422508], [-6.32544, -47.42186], [-6.326497, -47.424492], [-6.324804, -47.429363], [-6.324403, -47.432681], [-6.324465, -47.432239], [-6.326703, -47.432169], [-6.319706, -47.432703], [-6.319532, -47.435977], [-6.324423, -47.442253], [-6.338134, -47.462894], [-6.323084, -47.42516], [-6.328914, -47.419533], [-6.338716, -47.420824], [-6.342349, -47.427234], [-6.323394, -47.437767], [-6.330703, -47.470656], [-6.314821, -47.467961], [-6.314252, -47.456784], [-6.293521, -47.443162], [-6.293494, -47.443113], [-6.25215, -47.46333], [-6.250631, -47.46324], [-6.249389, -47.463213], [-6.258213, -47.462039], [-6.268912, -47.409788], [-6.279521, -47.407596]];
 const TRACADO_VOLTA = [[-6.279521, -47.407596], [-6.317453, -47.417956], [-6.326899, -47.431417], [-6.360198, -47.426094], [-6.409635, -47.443262], [-6.430572, -47.462285], [-6.486731, -47.482588], [-6.542423, -47.485676], [-6.562866, -47.472579], [-6.573589, -47.508583], [-6.622235, -47.562788], [-6.654688, -47.721095], [-6.737125, -47.778172], [-6.822698, -47.819428], [-6.839148, -47.946641], [-6.853906, -47.972641], [-6.883868, -47.994352], [-6.915281, -48.052834], [-6.968575, -48.099529], [-7.032281, -48.103509], [-7.068366, -48.119774], [-7.093243, -48.171055], [-7.22693, -48.250414]];
+const DATA_ISO = '2026-07-15';
+
+// Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
+// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
+// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
+// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
+// rota de um dia futuro com o mesmo cliente.
+function chaveStatus(codigo) {
+  return 'status_' + DATA_ISO + '_' + codigo;
+}
+function lerStatus(codigo) {
+  return localStorage.getItem(chaveStatus(codigo)) || '';
+}
+function aplicarStatus(li, status) {
+  li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
+  li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
+  if (status) {
+    li.classList.add('status-' + status);
+    const btn = li.querySelector('.status-btn.' + status);
+    if (btn) btn.classList.add('ativo');
+  }
+}
 
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', { preferCanvas: true });
@@ -122,9 +155,27 @@ PARADAS.forEach(p => {
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
+      '<div class="status-botoes">' +
+        '<div class="status-btn entregue" data-status="entregue">Entregue</div>' +
+        '<div class="status-btn devolucao" data-status="devolucao">Devolucao</div>' +
+        '<div class="status-btn fechado" data-status="fechado">Voltar depois/Fechado</div>' +
+      '</div>' +
       '<a class="btn-maps" href="' + mapsUrl + '" target="_blank" rel="noopener">Abrir no Google Maps</a>' +
     '</div>';
   listaEl.appendChild(li);
+  aplicarStatus(li, lerStatus(p.codigo));
+  li.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.dataset.status;
+      const novo = btn.classList.contains('ativo') ? '' : status;
+      if (novo) {
+        localStorage.setItem(chaveStatus(p.codigo), novo);
+      } else {
+        localStorage.removeItem(chaveStatus(p.codigo));
+      }
+      aplicarStatus(li, novo);
+    });
+  });
   pontos.push([p.lat, p.lon]);
   L.marker([p.lat, p.lon], { icon: iconeNumerado(p.seq) })
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
