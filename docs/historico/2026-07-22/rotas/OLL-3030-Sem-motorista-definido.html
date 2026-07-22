@@ -56,14 +56,46 @@ ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; m
 ul.lista-rotas li { margin-bottom: 10px; }
 ul.lista-rotas a { display: block; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; text-decoration: none; color: var(--texto); font-weight: bold; }
 ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margin-top: 4px; }
+.link-painel { display: block; text-align: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); font-size: 0.85rem; }
+.painel-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 10px; padding: 12px; }
+.painel-rota h2 { margin: 0 0 8px 0; font-size: 0.95rem; }
+.painel-contagem { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; font-weight: bold; margin-bottom: 8px; }
+.painel-contagem .c-entregue { color: #1e7e34; }
+.painel-contagem .c-devolucao { color: #c00000; }
+.painel-contagem .c-fechado { color: #b8860b; }
+.painel-contagem .c-pendente { color: #888; }
+.painel-linha { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; padding: 5px 0; border-top: 1px solid #f0f0f0; }
+.painel-linha .p-status { font-weight: bold; white-space: nowrap; }
+.painel-linha.status-entregue .p-status { color: #1e7e34; }
+.painel-linha.status-devolucao .p-status { color: #c00000; }
+.painel-linha.status-fechado .p-status { color: #b8860b; }
+.painel-linha.status-pendente .p-status { color: #bbb; }
+.painel-atualizado { text-align: center; font-size: 0.7rem; color: #888; padding: 8px; }
+.bloqueio { display: none; position: fixed; inset: 0; background: var(--azul); color: #fff; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+body.bloqueado .bloqueio { display: flex; }
+body.bloqueado > *:not(.bloqueio) { display: none !important; }
+.bloqueio-caixa { max-width: 320px; width: 100%; text-align: center; }
+.bloqueio-caixa h2 { margin: 0 0 4px 0; font-size: 1.1rem; }
+.bloqueio-caixa p { font-size: 0.8rem; opacity: 0.85; margin: 0 0 16px 0; }
+.bloqueio-caixa input { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 1rem; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
+.bloqueio-caixa button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #fff; color: var(--azul); font-weight: bold; font-size: 1rem; cursor: pointer; }
+.bloqueio-erro { color: #ffd6d6; font-size: 0.78rem; margin-top: 10px; min-height: 1em; }
+.admin-linha { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 8px 10px; }
+.admin-linha span { min-width: 40px; font-weight: bold; font-size: 0.85rem; }
+.admin-linha input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.admin-linha button { padding: 8px 12px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
+.admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+.admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
 </style>
 </head>
 <body>
 <header>
   <h1>OLL-3030 - Sem motorista definido</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 16:10</div>
+  <div class="sub">Atualizado em 22/07/2026 18:11</div>
 </header>
+
 <div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
@@ -78,19 +110,32 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <footer><a href="../index.html">Ver todas as rotas desta data</a></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const PARADAS = [{"seq": 1, "codigo": "01002648", "cliente": "DONA MARIA BEACH", "endereco": "AL ARAGUAIA, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215596, "lon": -48.218502, "dist_anterior_km": 6.528899999999999, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.221045, -48.247636], [-7.219996, -48.247447], [-7.214238, -48.244759], [-7.208713, -48.24213], [-7.208031, -48.241507], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208322, -48.236399], [-7.208208, -48.234595], [-7.208017, -48.23381], [-7.203712, -48.223746], [-7.203122, -48.221047], [-7.203237, -48.220862], [-7.20462, -48.220437], [-7.206323, -48.22098], [-7.207198, -48.220933], [-7.20779, -48.220716], [-7.2081, -48.220351], [-7.208235, -48.21947], [-7.208586, -48.218879], [-7.210222, -48.217039], [-7.210856, -48.216687], [-7.212184, -48.216791], [-7.213627, -48.216616], [-7.21562, -48.218454]];
 const TRACADO_VOLTA = [[-7.21562, -48.218454], [-7.216572, -48.21865], [-7.22074, -48.218613], [-7.220818, -48.228165], [-7.220212, -48.229531], [-7.220184, -48.230136], [-7.223462, -48.241241], [-7.223299, -48.24221], [-7.220508, -48.24796], [-7.229005, -48.251802], [-7.232203, -48.25296], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.229102, -48.251436], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-22';
+const ROTULO_ROTA = "OLL-3030 - Sem motorista definido";
+const NUMERO_MOTORISTA = null;
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
-// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
-// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
-// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
-// rota de um dia futuro com o mesmo cliente.
+// depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
+// funciona ate' sem internet no momento do clique) e no Firestore (nuvem,
+// pra sincronizar entre o celular do motorista e o painel do supervisor).
+// Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
+// apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let db = null;
+try {
+  firebase.initializeApp({"apiKey": "AIzaSyDZpcc1GgdbknHdkuI4dOx1myDR6PsLPic", "authDomain": "rotacertaog.firebaseapp.com", "projectId": "rotacertaog", "storageBucket": "rotacertaog.firebasestorage.app", "messagingSenderId": "1048075742585", "appId": "1:1048075742585:web:424f99f9a29fa0f23593a8"});
+  db = firebase.firestore();
+} catch (e) {
+  console.error('Firebase nao inicializou (marcacao vai funcionar so neste aparelho):', e);
+}
 
 function chaveStatus(codigo) {
   return 'status_' + DATA_ISO + '_' + codigo;
@@ -98,6 +143,35 @@ function chaveStatus(codigo) {
 function lerStatus(codigo) {
   return localStorage.getItem(chaveStatus(codigo)) || '';
 }
+function salvarStatusRemoto(p, status) {
+  if (!db) return;
+  const ref = db.collection('status_entregas').doc(DATA_ISO + '_' + p.codigo);
+  if (status) {
+    ref.set({
+      data: DATA_ISO,
+      rotulo: ROTULO_ROTA,
+      codigo: p.codigo,
+      cliente: p.cliente,
+      seq: p.seq,
+      status: status,
+      atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.error('Falha ao sincronizar status:', err));
+  } else {
+    ref.delete().catch(err => console.error('Falha ao limpar status remoto:', err));
+  }
+}
+function iconeNumerado(numero, cor) {
+  cor = cor || '#1f4e78';
+  return L.divIcon({
+    className: 'icone-parada',
+    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
+          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
+          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
+}
+
 function aplicarStatus(li, status, marker, numero) {
   li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
   li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
@@ -111,6 +185,7 @@ function aplicarStatus(li, status, marker, numero) {
   }
 }
 
+function iniciarPagina() {
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', { preferCanvas: true });
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -119,18 +194,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   keepBuffer: 3,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(mapa);
-
-function iconeNumerado(numero, cor) {
-  cor = cor || '#1f4e78';
-  return L.divIcon({
-    className: 'icone-parada',
-    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
-          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
-          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13]
-  });
-}
 
 const iconeOrigem = L.divIcon({
   className: 'icone-origem',
@@ -145,6 +208,8 @@ const pontos = [[ORIGEM.lat, ORIGEM.lon]];
 L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
   .bindPopup('<b>Saida do caminhao</b>')
   .addTo(mapa);
+
+const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
 PARADAS.forEach(p => {
   const li = document.createElement('li');
@@ -175,6 +240,7 @@ PARADAS.forEach(p => {
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
     .addTo(mapa);
   aplicarStatus(li, statusInicial, marker, p.seq);
+  referencias[p.codigo] = { li, marker };
   li.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const status = btn.dataset.status;
@@ -185,9 +251,28 @@ PARADAS.forEach(p => {
         localStorage.removeItem(chaveStatus(p.codigo));
       }
       aplicarStatus(li, novo, marker, p.seq);
+      salvarStatusRemoto(p, novo);
     });
   });
 });
+
+// Ao abrir a pagina, busca no Firestore o status mais recente de cada
+// parada (pode ter sido marcado de outro aparelho) e sobrescreve o que
+// veio do localStorage, que e' so' um cache instantaneo local.
+if (db) {
+  db.collection('status_entregas').where('data', '==', DATA_ISO).get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const dados = doc.data();
+      const ref = referencias[dados.codigo];
+      if (ref && dados.status && dados.status !== lerStatus(dados.codigo)) {
+        localStorage.setItem(chaveStatus(dados.codigo), dados.status);
+        const seqNum = parseInt(ref.li.querySelector('.num').textContent, 10);
+        aplicarStatus(ref.li, dados.status, ref.marker, seqNum);
+      }
+    });
+  }).catch(err => console.error('Falha ao buscar status remoto:', err));
+}
+
 if (pontos.length > 1) {
   // TRACADO_IDA/TRACADO_VOLTA vem do OSRM (segue as ruas de verdade). Se o
   // servico falhou na hora de gerar a pagina, caimos para uma linha reta
@@ -201,6 +286,47 @@ if (pontos.length > 1) {
 }
 if (pontos.length) {
   mapa.fitBounds(pontos, { padding: [30, 30] });
+}
+}  // fim de iniciarPagina()
+
+// --- controle de acesso por senha (por motorista) ---------------------
+// Protecao simples: impede abertura casual do link. Nao e' seguranca forte
+// (o codigo roda todo no navegador, alguem tecnico poderia contornar), mas
+// evita que quem receba o link por engano veja dados do cliente. A senha
+// fica guardada no Firestore (colecao "motoristas"),
+// nunca no codigo desta pagina.
+if (!NUMERO_MOTORISTA) {
+  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
+} else {
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+  if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
+    iniciarPagina();
+  } else {
+    document.body.classList.add('bloqueado');
+    const form = document.getElementById('formSenha');
+    const erroEl = document.getElementById('bloqueioErro');
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      if (!db) {
+        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+        return;
+      }
+      const senhaDigitada = document.getElementById('campoSenha').value;
+      erroEl.textContent = 'Verificando...';
+      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
+        if (doc.exists && doc.data().senha === senhaDigitada) {
+          localStorage.setItem(chaveDesbloqueio, 'sim');
+          document.body.classList.remove('bloqueado');
+          iniciarPagina();
+        } else {
+          erroEl.textContent = 'Senha incorreta.';
+        }
+      }).catch(err => {
+        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+        console.error(err);
+      });
+    });
+  }
 }
 </script>
 </body>

@@ -56,14 +56,47 @@ ul.lista-rotas { list-style: none; margin: 0; padding: 12px; max-width: 480px; m
 ul.lista-rotas li { margin-bottom: 10px; }
 ul.lista-rotas a { display: block; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 14px 16px; text-decoration: none; color: var(--texto); font-weight: bold; }
 ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margin-top: 4px; }
+.link-painel { display: block; text-align: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); font-size: 0.85rem; }
+.painel-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 10px; padding: 12px; }
+.painel-rota h2 { margin: 0 0 8px 0; font-size: 0.95rem; }
+.painel-contagem { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.72rem; font-weight: bold; margin-bottom: 8px; }
+.painel-contagem .c-entregue { color: #1e7e34; }
+.painel-contagem .c-devolucao { color: #c00000; }
+.painel-contagem .c-fechado { color: #b8860b; }
+.painel-contagem .c-pendente { color: #888; }
+.painel-linha { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; padding: 5px 0; border-top: 1px solid #f0f0f0; }
+.painel-linha .p-status { font-weight: bold; white-space: nowrap; }
+.painel-linha.status-entregue .p-status { color: #1e7e34; }
+.painel-linha.status-devolucao .p-status { color: #c00000; }
+.painel-linha.status-fechado .p-status { color: #b8860b; }
+.painel-linha.status-pendente .p-status { color: #bbb; }
+.painel-atualizado { text-align: center; font-size: 0.7rem; color: #888; padding: 8px; }
+.bloqueio { display: none; position: fixed; inset: 0; background: var(--azul); color: #fff; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+body.bloqueado .bloqueio { display: flex; }
+body.bloqueado > *:not(.bloqueio) { display: none !important; }
+.bloqueio-caixa { max-width: 320px; width: 100%; text-align: center; }
+.bloqueio-caixa h2 { margin: 0 0 4px 0; font-size: 1.1rem; }
+.bloqueio-caixa p { font-size: 0.8rem; opacity: 0.85; margin: 0 0 16px 0; }
+.bloqueio-caixa input { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 1rem; text-align: center; margin-bottom: 10px; box-sizing: border-box; }
+.bloqueio-caixa button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #fff; color: var(--azul); font-weight: bold; font-size: 1rem; cursor: pointer; }
+.bloqueio-erro { color: #ffd6d6; font-size: 0.78rem; margin-top: 10px; min-height: 1em; }
+.admin-linha { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 8px 10px; }
+.admin-linha span { min-width: 40px; font-weight: bold; font-size: 0.85rem; }
+.admin-linha input { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.admin-linha button { padding: 8px 12px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
+.admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+.admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
 </style>
 </head>
 <body>
+<div class="bloqueio"><div class="bloqueio-caixa"><h2>Rota protegida</h2><p>Digite a senha do motorista pra ver essa rota.</p><form id="formSenha"><input type="password" id="campoSenha" placeholder="Senha" autocomplete="current-password" required><button type="submit">Entrar</button></form><div class="bloqueio-erro" id="bloqueioErro"></div></div></div>
 <header>
   <h1>RMB-6G45 - Motorista 724</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 16:10</div>
+  <div class="sub">Atualizado em 22/07/2026 18:11</div>
 </header>
+
 <div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
@@ -78,19 +111,32 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 <footer><a href="../index.html">Ver todas as rotas desta data</a></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const PARADAS = [{"seq": 1, "codigo": "01002758", "cliente": "CONV IPANEMA 2", "endereco": "AV FILADELFIA QD5 LT01, 5561BAIRRO SAO JOAOARAGUAINATO - BAIRRO SAO JOAO - ARAGUAINA/TO - CEP 77800000", "lat": -7.197858, "lon": -48.193088, "dist_anterior_km": 8.1791, "dist_proxima_km": 0.8132999999999999}, {"seq": 2, "codigo": "01002929", "cliente": "SUPER SOUSA       01", "endereco": "RUA 0002 QD09 LT17 S/NSETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77826574", "lat": -7.198048, "lon": -48.188418, "dist_anterior_km": 0.8132999999999999, "dist_proxima_km": 0.2057}, {"seq": 3, "codigo": "01002885", "cliente": "ESPET FIM DE TARDE", "endereco": "RU1 02 QD25 LT4, 144SETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77800000", "lat": -7.197045, "lon": -48.189898, "dist_anterior_km": 0.2057, "dist_proxima_km": 0.3292}, {"seq": 4, "codigo": "01001840", "cliente": "ESQUENTA BAR E RESTA", "endereco": "AV BRASIL QD 29 LT04 ESQ COM AV GOIAS S/NSETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77826566", "lat": -7.195038, "lon": -48.188415, "dist_anterior_km": 0.3292, "dist_proxima_km": 0.49060000000000004}, {"seq": 5, "codigo": "01001678", "cliente": "REST QUERO CONHECER", "endereco": "RUA RODOVIARIA, 94 -QD32 LT16SETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77826215", "lat": -7.193011, "lon": -48.187839, "dist_anterior_km": 0.49060000000000004, "dist_proxima_km": 0.2356}, {"seq": 6, "codigo": "01000590", "cliente": "BAR DO NEGO 03", "endereco": "RUA PERIMETRQD 08 S/N -01070SETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77825040", "lat": -7.193896, "lon": -48.18594, "dist_anterior_km": 0.2356, "dist_proxima_km": 0.0654}, {"seq": 7, "codigo": "01002599", "cliente": "BEATLER BAR", "endereco": "RUA RODOVIARIA QD 09 LT 02 S/NSETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77826521", "lat": -7.19412, "lon": -48.185398, "dist_anterior_km": 0.0654, "dist_proxima_km": 0.0676}, {"seq": 8, "codigo": "01000105", "cliente": "ESPETINHO DO JOCA", "endereco": "RUA SAO CRISTOVAO RAIZ S/N -QD 5 LT12SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77826550", "lat": -7.193979, "lon": -48.184754, "dist_anterior_km": 0.0676, "dist_proxima_km": 0.1434}, {"seq": 9, "codigo": "01000166", "cliente": "MERCADINHO HD", "endereco": "RUA RODOVIARIA LT 03 S/N -00985SETOR COIMBRAARAGUAINATO - SETOR COIMBRA - ARAGUAINA/TO - CEP 77825040", "lat": -7.19449, "lon": -48.185124, "dist_anterior_km": 0.1434, "dist_proxima_km": 0.4698}, {"seq": 10, "codigo": "01002984", "cliente": "BAR E REST VITORIA", "endereco": "AV SAO SAO FRANCISCO, 1545SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77827030", "lat": -7.192051, "lon": -48.182503, "dist_anterior_km": 0.4698, "dist_proxima_km": 0.5636}, {"seq": 11, "codigo": "01002350", "cliente": "SUPER RIBEIRO", "endereco": "AV SAO FRANCISCO, 2090SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77827030", "lat": -7.195542, "lon": -48.181755, "dist_anterior_km": 0.5636, "dist_proxima_km": 0.2921}, {"seq": 12, "codigo": "01002507", "cliente": "ADEGA MARTINS     01", "endereco": "RUA RODOVIARIA, 1033SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77826521", "lat": -7.1971, "lon": -48.181213, "dist_anterior_km": 0.2921, "dist_proxima_km": 0.1789}, {"seq": 13, "codigo": "01002566", "cliente": "ADEGA ICE BEER    01", "endereco": "RUA R 15 QD 23 LT 01 S/NVILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826618", "lat": -7.198116, "lon": -48.180124, "dist_anterior_km": 0.1789, "dist_proxima_km": 0.439}, {"seq": 14, "codigo": "01002670", "cliente": "BAR DO BOTELHO    01", "endereco": "RUA 0006, 26VILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826602", "lat": -7.198801, "lon": -48.182129, "dist_anterior_km": 0.439, "dist_proxima_km": 0.3221}, {"seq": 15, "codigo": "01002352", "cliente": "CASA CARNE BOI OURO", "endereco": "RU1 ONZE QD 06 LT 11 S/NVILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77800000", "lat": -7.197867, "lon": -48.183996, "dist_anterior_km": 0.3221, "dist_proxima_km": 0.2742}, {"seq": 16, "codigo": "01001111", "cliente": "PEIXARIA TOCANTINS", "endereco": "RUA 11 S/N -01166VILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77825040", "lat": -7.199781, "lon": -48.185579, "dist_anterior_km": 0.2742, "dist_proxima_km": 0.1088}, {"seq": 17, "codigo": "01002840", "cliente": "ADEGA BEER HOUSE  01", "endereco": "RUA 0001 S/NVILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826614", "lat": -7.200473, "lon": -48.18529, "dist_anterior_km": 0.1088, "dist_proxima_km": 0.3241}, {"seq": 18, "codigo": "01002552", "cliente": "POINT BAR E RESTAURA", "endereco": "RUA 0015 QD 18 LT 04 S/NVILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826618", "lat": -7.201654, "lon": -48.183174, "dist_anterior_km": 0.3241, "dist_proxima_km": 0.1155}, {"seq": 19, "codigo": "01000953", "cliente": "CONVENIENCIA ELDORAD", "endereco": "RUA 0014 S/N -00678VILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826616", "lat": -7.20136, "lon": -48.182319, "dist_anterior_km": 0.1155, "dist_proxima_km": 0.2078}, {"seq": 20, "codigo": "01000970", "cliente": "SUPER LIMA. 01", "endereco": "RUA 15 N 7 S/N -01151VILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826618", "lat": -7.202608, "lon": -48.182145, "dist_anterior_km": 0.2078, "dist_proxima_km": 0.0112}, {"seq": 21, "codigo": "01002626", "cliente": "ACOUGUE E ADEG LEVIN", "endereco": "RUA 15 QDR 21 LT 01 CASA 01, 1VILA PATROCINIOARAGUAINATO - VILA PATROCINIO - ARAGUAINA/TO - CEP 77826618", "lat": -7.202669, "lon": -48.182233, "dist_anterior_km": 0.0112, "dist_proxima_km": 0.1895}, {"seq": 22, "codigo": "01002146", "cliente": "BAR DA ISABEL", "endereco": "RU1 TREZ S/NMORADA DO SOL IARAGUAINATO - MORADA DO SOL I - ARAGUAINA/TO - CEP 77800000", "lat": -7.203403, "lon": -48.1821, "dist_anterior_km": 0.1895, "dist_proxima_km": 0.0205}, {"seq": 23, "codigo": "01002281", "cliente": "ZICAO MANIA", "endereco": "RU1 FILADELFIA S/N -QD 1 L 51RESIDENCIAL CAMARGOARAGUAINATO - RESIDENCIAL CAMARGO - ARAGUAINA/TO - CEP 77800000", "lat": -7.203309, "lon": -48.182263, "dist_anterior_km": 0.0205, "dist_proxima_km": 1.1371}, {"seq": 24, "codigo": "01001339", "cliente": "FN BEBIDAS", "endereco": "RU1 WANDERSON DE ARAUJO, 352 -QD03 LT 11ANA MARIAARAGUAINATO - ANA MARIA - ARAGUAINA/TO - CEP 77838290", "lat": -7.201214, "lon": -48.177216, "dist_anterior_km": 1.1371, "dist_proxima_km": 0.8559}, {"seq": 25, "codigo": "01001418", "cliente": "CHEGA MAIS ADEGA", "endereco": "AV PERIMETRAL QD 05 LT82 S/N -QD 05 LT59MORADA DO SOL IIARAGUAINATO - MORADA DO SOL II - ARAGUAINA/TO - CEP 77828190", "lat": -7.19787, "lon": -48.174626, "dist_anterior_km": 0.8559, "dist_proxima_km": 0.8231}, {"seq": 26, "codigo": "01000294", "cliente": "ESPERANCA BAR", "endereco": "RUA J QD29 LT24 SN S/N -01014ANA MARIAARAGUAINATO - ANA MARIA - ARAGUAINA/TO - CEP 77808180", "lat": -7.202333, "lon": -48.171475, "dist_anterior_km": 0.8231, "dist_proxima_km": 2.6466}, {"seq": 27, "codigo": "01000702", "cliente": "CONV DO PARENTE", "endereco": "AV SAO FRANCISCO S/N -SALA 02LOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827030", "lat": -7.188512, "lon": -48.187685, "dist_anterior_km": 2.6466, "dist_proxima_km": 8.5206}, {"seq": 28, "codigo": "01002846", "cliente": "MERC PONTO CERTO", "endereco": "RU1 DOS IPES QD02 LT21 S/NJARDIM PARAISOARAGUAINATO - JARDIM PARAISO - ARAGUAINA/TO - CEP 77800000", "lat": -7.246455, "lon": -48.147895, "dist_anterior_km": 8.5206, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208208, -48.234595], [-7.203712, -48.223746], [-7.201798, -48.21526], [-7.202998, -48.206099], [-7.202821, -48.202811], [-7.198527, -48.194127], [-7.198699, -48.192889], [-7.197916, -48.193075], [-7.198703, -48.192986], [-7.198349, -48.19089], [-7.199146, -48.188522], [-7.198037, -48.188432], [-7.197608, -48.188097], [-7.196491, -48.189526], [-7.197037, -48.189891], [-7.195048, -48.188403], [-7.195464, -48.188736], [-7.193713, -48.191002], [-7.193092, -48.190502], [-7.193008, -48.187838], [-7.193884, -48.185932], [-7.194057, -48.18545], [-7.19371, -48.184946], [-7.194352, -48.184039], [-7.194452, -48.185098], [-7.194142, -48.185554], [-7.192013, -48.182529], [-7.192531, -48.181744], [-7.193824, -48.183243], [-7.195463, -48.181673], [-7.196464, -48.18062], [-7.197126, -48.181232], [-7.198128, -48.180066], [-7.199745, -48.180406], [-7.199362, -48.182002], [-7.1988, -48.182133], [-7.197479, -48.183786], [-7.197826, -48.184051], [-7.199799, -48.185554], [-7.200466, -48.185285], [-7.201504, -48.183056], [-7.201356, -48.182325], [-7.200931, -48.18201], [-7.201529, -48.181216], [-7.202655, -48.182082], [-7.202736, -48.182143], [-7.20342, -48.181522], [-7.203318, -48.182032], [-7.203203, -48.182178], [-7.199861, -48.180424], [-7.201017, -48.177852], [-7.200529, -48.178336], [-7.200536, -48.176886], [-7.201148, -48.177186], [-7.200644, -48.178336], [-7.197867, -48.178339], [-7.197918, -48.174627], [-7.19796, -48.171554], [-7.202333, -48.171562], [-7.202476, -48.173967], [-7.199745, -48.180406], [-7.19726, -48.179793], [-7.188517, -48.187691], [-7.19726, -48.179793], [-7.200631, -48.180557], [-7.202847, -48.182226], [-7.213355, -48.169196], [-7.221209, -48.164911], [-7.246384, -48.147789]];
 const TRACADO_VOLTA = [[-7.246384, -48.147789], [-7.221209, -48.164911], [-7.213355, -48.169196], [-7.198715, -48.18798], [-7.197661, -48.19039], [-7.19804, -48.193477], [-7.202763, -48.203333], [-7.201754, -48.215578], [-7.204045, -48.225145], [-7.208184, -48.235024], [-7.207592, -48.239863], [-7.207057, -48.241057], [-7.205925, -48.241098], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-22';
+const ROTULO_ROTA = "RMB-6G45 - Motorista 724";
+const NUMERO_MOTORISTA = "724";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
-// depois-Fechado). Fica guardado so' no navegador do celular (localStorage),
-// nao existe backend/banco de dados nesse sistema. Escopado por dia (chave
-// inclui DATA_ISO) para que a marcacao de hoje nao apareca, por engano, numa
-// rota de um dia futuro com o mesmo cliente.
+// depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
+// funciona ate' sem internet no momento do clique) e no Firestore (nuvem,
+// pra sincronizar entre o celular do motorista e o painel do supervisor).
+// Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
+// apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let db = null;
+try {
+  firebase.initializeApp({"apiKey": "AIzaSyDZpcc1GgdbknHdkuI4dOx1myDR6PsLPic", "authDomain": "rotacertaog.firebaseapp.com", "projectId": "rotacertaog", "storageBucket": "rotacertaog.firebasestorage.app", "messagingSenderId": "1048075742585", "appId": "1:1048075742585:web:424f99f9a29fa0f23593a8"});
+  db = firebase.firestore();
+} catch (e) {
+  console.error('Firebase nao inicializou (marcacao vai funcionar so neste aparelho):', e);
+}
 
 function chaveStatus(codigo) {
   return 'status_' + DATA_ISO + '_' + codigo;
@@ -98,6 +144,35 @@ function chaveStatus(codigo) {
 function lerStatus(codigo) {
   return localStorage.getItem(chaveStatus(codigo)) || '';
 }
+function salvarStatusRemoto(p, status) {
+  if (!db) return;
+  const ref = db.collection('status_entregas').doc(DATA_ISO + '_' + p.codigo);
+  if (status) {
+    ref.set({
+      data: DATA_ISO,
+      rotulo: ROTULO_ROTA,
+      codigo: p.codigo,
+      cliente: p.cliente,
+      seq: p.seq,
+      status: status,
+      atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.error('Falha ao sincronizar status:', err));
+  } else {
+    ref.delete().catch(err => console.error('Falha ao limpar status remoto:', err));
+  }
+}
+function iconeNumerado(numero, cor) {
+  cor = cor || '#1f4e78';
+  return L.divIcon({
+    className: 'icone-parada',
+    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
+          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
+          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
+}
+
 function aplicarStatus(li, status, marker, numero) {
   li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
   li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
@@ -111,6 +186,7 @@ function aplicarStatus(li, status, marker, numero) {
   }
 }
 
+function iniciarPagina() {
 const listaEl = document.getElementById('listaParadas');
 const mapa = L.map('mapa', { preferCanvas: true });
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -119,18 +195,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   keepBuffer: 3,
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(mapa);
-
-function iconeNumerado(numero, cor) {
-  cor = cor || '#1f4e78';
-  return L.divIcon({
-    className: 'icone-parada',
-    html: '<div style="background:' + cor + ';color:#fff;border-radius:50%;width:26px;height:26px;' +
-          'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;' +
-          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">' + numero + '</div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13]
-  });
-}
 
 const iconeOrigem = L.divIcon({
   className: 'icone-origem',
@@ -145,6 +209,8 @@ const pontos = [[ORIGEM.lat, ORIGEM.lon]];
 L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
   .bindPopup('<b>Saida do caminhao</b>')
   .addTo(mapa);
+
+const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
 PARADAS.forEach(p => {
   const li = document.createElement('li');
@@ -175,6 +241,7 @@ PARADAS.forEach(p => {
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
     .addTo(mapa);
   aplicarStatus(li, statusInicial, marker, p.seq);
+  referencias[p.codigo] = { li, marker };
   li.querySelectorAll('.status-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const status = btn.dataset.status;
@@ -185,9 +252,28 @@ PARADAS.forEach(p => {
         localStorage.removeItem(chaveStatus(p.codigo));
       }
       aplicarStatus(li, novo, marker, p.seq);
+      salvarStatusRemoto(p, novo);
     });
   });
 });
+
+// Ao abrir a pagina, busca no Firestore o status mais recente de cada
+// parada (pode ter sido marcado de outro aparelho) e sobrescreve o que
+// veio do localStorage, que e' so' um cache instantaneo local.
+if (db) {
+  db.collection('status_entregas').where('data', '==', DATA_ISO).get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const dados = doc.data();
+      const ref = referencias[dados.codigo];
+      if (ref && dados.status && dados.status !== lerStatus(dados.codigo)) {
+        localStorage.setItem(chaveStatus(dados.codigo), dados.status);
+        const seqNum = parseInt(ref.li.querySelector('.num').textContent, 10);
+        aplicarStatus(ref.li, dados.status, ref.marker, seqNum);
+      }
+    });
+  }).catch(err => console.error('Falha ao buscar status remoto:', err));
+}
+
 if (pontos.length > 1) {
   // TRACADO_IDA/TRACADO_VOLTA vem do OSRM (segue as ruas de verdade). Se o
   // servico falhou na hora de gerar a pagina, caimos para uma linha reta
@@ -201,6 +287,47 @@ if (pontos.length > 1) {
 }
 if (pontos.length) {
   mapa.fitBounds(pontos, { padding: [30, 30] });
+}
+}  // fim de iniciarPagina()
+
+// --- controle de acesso por senha (por motorista) ---------------------
+// Protecao simples: impede abertura casual do link. Nao e' seguranca forte
+// (o codigo roda todo no navegador, alguem tecnico poderia contornar), mas
+// evita que quem receba o link por engano veja dados do cliente. A senha
+// fica guardada no Firestore (colecao "motoristas"),
+// nunca no codigo desta pagina.
+if (!NUMERO_MOTORISTA) {
+  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
+} else {
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+  if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
+    iniciarPagina();
+  } else {
+    document.body.classList.add('bloqueado');
+    const form = document.getElementById('formSenha');
+    const erroEl = document.getElementById('bloqueioErro');
+    form.addEventListener('submit', ev => {
+      ev.preventDefault();
+      if (!db) {
+        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+        return;
+      }
+      const senhaDigitada = document.getElementById('campoSenha').value;
+      erroEl.textContent = 'Verificando...';
+      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
+        if (doc.exists && doc.data().senha === senhaDigitada) {
+          localStorage.setItem(chaveDesbloqueio, 'sim');
+          document.body.classList.remove('bloqueado');
+          iniciarPagina();
+        } else {
+          erroEl.textContent = 'Senha incorreta.';
+        }
+      }).catch(err => {
+        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+        console.error(err);
+      });
+    });
+  }
 }
 </script>
 </body>
