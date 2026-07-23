@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>RMB-6G43 - Motorista 730</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:08</div>
+  <div class="sub">Atualizado em 22/07/2026 22:21</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01002565", "cliente": "MERC DA JOANA", "endereco": "RUA 034 QD 22 LT 05, 598BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815530", "lat": -7.223041, "lon": -48.245311, "dist_anterior_km": 0.9324, "dist_proxima_km": 0.1987}, {"seq": 2, "codigo": "01002749", "cliente": "BAR DO JADSON", "endereco": "AV ASTOLENO LEAO QD 33 LT03 S/NBAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815320", "lat": -7.222431, "lon": -48.24479, "dist_anterior_km": 0.1987, "dist_proxima_km": 0.3615}, {"seq": 3, "codigo": "01001999", "cliente": "BAR SABOR DE MEL", "endereco": "RUA ASTOLFO L BORGES, 680 -Q 33BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815720", "lat": -7.223747, "lon": -48.241779, "dist_anterior_km": 0.3615, "dist_proxima_km": 0.3963}, {"seq": 4, "codigo": "01000203", "cliente": "ADEGA MERC BOM SABOR", "endereco": "RUA 30 S/N -00254BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815490", "lat": -7.221741, "lon": -48.240344, "dist_anterior_km": 0.3963, "dist_proxima_km": 0.537}, {"seq": 5, "codigo": "01002332", "cliente": "PONTO DO SABOR", "endereco": "RUA TRINTA E SEIS, 454 -ESQ C 35BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815550", "lat": -7.22446, "lon": -48.242076, "dist_anterior_km": 0.537, "dist_proxima_km": 0.32930000000000004}, {"seq": 6, "codigo": "01000647", "cliente": "REAL BAR 04", "endereco": "RUA ASTOLFO LEAO BORGES, 308 -QD21 LT08BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815321", "lat": -7.224031, "lon": -48.244361, "dist_anterior_km": 0.32930000000000004, "dist_proxima_km": 0.7657999999999999}, {"seq": 7, "codigo": "01000674", "cliente": "BRITOS BAR 01", "endereco": "RUA 38 SN S/N -00384BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815570", "lat": -7.224219, "lon": -48.237765, "dist_anterior_km": 0.7657999999999999, "dist_proxima_km": 0.7727}, {"seq": 8, "codigo": "01001272", "cliente": "ADEGAO MIX        01", "endereco": "RUA 049 QD 70 LT 01, 1006BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815680", "lat": -7.218481, "lon": -48.237841, "dist_anterior_km": 0.7727, "dist_proxima_km": 0.1383}, {"seq": 9, "codigo": "01002779", "cliente": "ENTOCAS BAR", "endereco": "RUA 016 QD68 LT19 S/NBAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815350", "lat": -7.218613, "lon": -48.238858, "dist_anterior_km": 0.1383, "dist_proxima_km": 0.14709999999999998}, {"seq": 10, "codigo": "01000387", "cliente": "BAR DA LOURA 03", "endereco": "RUA 16 751 S/N -00306BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815350", "lat": -7.218841, "lon": -48.24018, "dist_anterior_km": 0.14709999999999998, "dist_proxima_km": 0.7971}, {"seq": 11, "codigo": "01000061", "cliente": "SUPERMERCADO SAO LUI", "endereco": "RUA 20 - ESQ COM A 4 S/N -00212NOVA ARAGUAINAARAGUAINATO - NOVA ARAGUAINA - ARAGUAINA/TO - CEP 77813520", "lat": -7.219346, "lon": -48.234636, "dist_anterior_km": 0.7971, "dist_proxima_km": 0.43660000000000004}, {"seq": 12, "codigo": "01002964", "cliente": "BAIXINHO BEBIDAS  01", "endereco": "AV ASTOLENO LEAO, 846BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815320", "lat": -7.22106, "lon": -48.232401, "dist_anterior_km": 0.43660000000000004, "dist_proxima_km": 0.4476}, {"seq": 13, "codigo": "01001253", "cliente": "MARCADINHO PATRIA", "endereco": "AV ASTOLFO LEAO BORGES, 1621 -QD105 LT11BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815321", "lat": -7.221348, "lon": -48.233857, "dist_anterior_km": 0.4476, "dist_proxima_km": 2.2214}, {"seq": 14, "codigo": "01002563", "cliente": "PESQUE PAG PRIMAVERA", "endereco": "RUA BR 153 KM 7 4 KM A DIRETA CHA PRIMAVERA - S/NZONA RURALARAGUAINATO - ZONA RURAL - ARAGUAINA/TO - CEP 77834899", "lat": -7.225023, "lon": -48.250028, "dist_anterior_km": 2.2214, "dist_proxima_km": 2.9696}, {"seq": 15, "codigo": "01000339", "cliente": "PARK AQUATICO 3J", "endereco": "ROD BR 153 KM 132 A S/N -01217ZONA RURALARAGUAINATO - ZONA RURAL - ARAGUAINA/TO - CEP 77803010", "lat": -7.221585, "lon": -48.277048, "dist_anterior_km": 2.9696, "dist_proxima_km": 7.247199999999999}, {"seq": 16, "codigo": "01000530", "cliente": "CONVENIENCIA 2 IRMAO", "endereco": "AV BERNARDO SAYAO SN, 187BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77825040", "lat": -7.206767, "lon": -48.241786, "dist_anterior_km": 7.247199999999999, "dist_proxima_km": 0.2396}, {"seq": 17, "codigo": "01000316", "cliente": "NOQUEIRA BAR", "endereco": "AV LONTRA 1572, 1572 -01210BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77813520", "lat": -7.208011, "lon": -48.243047, "dist_anterior_km": 0.2396, "dist_proxima_km": 0.5346000000000001}, {"seq": 18, "codigo": "01001423", "cliente": "SUPER MIX JK", "endereco": "AV LONTRA, 898BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816190", "lat": -7.204192, "lon": -48.242382, "dist_anterior_km": 0.5346000000000001, "dist_proxima_km": 0.011}, {"seq": 19, "codigo": "01000024", "cliente": "MERCEA TRES IRMAOS", "endereco": "RUA CASTRO ALVES 17 S/N -01182BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816060", "lat": -7.204069, "lon": -48.242433, "dist_anterior_km": 0.011, "dist_proxima_km": 0.2055}, {"seq": 20, "codigo": "01000553", "cliente": "BAR DO BAIXOTE", "endereco": "AV ARAGUACI 716, 716 -01242BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816180", "lat": -7.202979, "lon": -48.241587, "dist_anterior_km": 0.2055, "dist_proxima_km": 0.167}, {"seq": 21, "codigo": "01002567", "cliente": "PEIXARIA CRISTAL", "endereco": "AV ARAGUACI, 171BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816180", "lat": -7.201644, "lon": -48.240871, "dist_anterior_km": 0.167, "dist_proxima_km": 0.25680000000000003}, {"seq": 22, "codigo": "01003002", "cliente": "C/ DE CARNE ALVORADA", "endereco": "AV BERNARDO SAYAO, 316BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816192", "lat": -7.202642, "lon": -48.239892, "dist_anterior_km": 0.25680000000000003, "dist_proxima_km": 0.1206}, {"seq": 23, "codigo": "01001102", "cliente": "BAR E RESTAURANTE JM", "endereco": "AV BERNARDO SAYAO 1 S/N -01290BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816200", "lat": -7.203673, "lon": -48.240264, "dist_anterior_km": 0.1206, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01002565", "pedido": "0105", "cliente": "MERC DA JOANA", "endereco": "RUA 034 QD 22 LT 05, 598BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815530", "lat": -7.223041, "lon": -48.245311, "dist_anterior_km": 0.9324, "dist_proxima_km": 0.1987}, {"seq": 2, "codigo": "01002749", "pedido": "0092", "cliente": "BAR DO JADSON", "endereco": "AV ASTOLENO LEAO QD 33 LT03 S/NBAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815320", "lat": -7.222431, "lon": -48.24479, "dist_anterior_km": 0.1987, "dist_proxima_km": 0.3615}, {"seq": 3, "codigo": "01001999", "pedido": "0099", "cliente": "BAR SABOR DE MEL", "endereco": "RUA ASTOLFO L BORGES, 680 -Q 33BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815720", "lat": -7.223747, "lon": -48.241779, "dist_anterior_km": 0.3615, "dist_proxima_km": 0.3963}, {"seq": 4, "codigo": "01000203", "pedido": "0111", "cliente": "ADEGA MERC BOM SABOR", "endereco": "RUA 30 S/N -00254BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815490", "lat": -7.221741, "lon": -48.240344, "dist_anterior_km": 0.3963, "dist_proxima_km": 0.537}, {"seq": 5, "codigo": "01002332", "pedido": "0112", "cliente": "PONTO DO SABOR", "endereco": "RUA TRINTA E SEIS, 454 -ESQ C 35BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815550", "lat": -7.22446, "lon": -48.242076, "dist_anterior_km": 0.537, "dist_proxima_km": 0.32930000000000004}, {"seq": 6, "codigo": "01000647", "pedido": "0052", "cliente": "REAL BAR 04", "endereco": "RUA ASTOLFO LEAO BORGES, 308 -QD21 LT08BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815321", "lat": -7.224031, "lon": -48.244361, "dist_anterior_km": 0.32930000000000004, "dist_proxima_km": 0.7657999999999999}, {"seq": 7, "codigo": "01000674", "pedido": "0097", "cliente": "BRITOS BAR 01", "endereco": "RUA 38 SN S/N -00384BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815570", "lat": -7.224219, "lon": -48.237765, "dist_anterior_km": 0.7657999999999999, "dist_proxima_km": 0.7727}, {"seq": 8, "codigo": "01001272", "pedido": "0110", "cliente": "ADEGAO MIX        01", "endereco": "RUA 049 QD 70 LT 01, 1006BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815680", "lat": -7.218481, "lon": -48.237841, "dist_anterior_km": 0.7727, "dist_proxima_km": 0.1383}, {"seq": 9, "codigo": "01002779", "pedido": "0094", "cliente": "ENTOCAS BAR", "endereco": "RUA 016 QD68 LT19 S/NBAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815350", "lat": -7.218613, "lon": -48.238858, "dist_anterior_km": 0.1383, "dist_proxima_km": 0.14709999999999998}, {"seq": 10, "codigo": "01000387", "pedido": "0093", "cliente": "BAR DA LOURA 03", "endereco": "RUA 16 751 S/N -00306BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815350", "lat": -7.218841, "lon": -48.24018, "dist_anterior_km": 0.14709999999999998, "dist_proxima_km": 0.7971}, {"seq": 11, "codigo": "01000061", "pedido": "0095", "cliente": "SUPERMERCADO SAO LUI", "endereco": "RUA 20 - ESQ COM A 4 S/N -00212NOVA ARAGUAINAARAGUAINATO - NOVA ARAGUAINA - ARAGUAINA/TO - CEP 77813520", "lat": -7.219346, "lon": -48.234636, "dist_anterior_km": 0.7971, "dist_proxima_km": 0.43660000000000004}, {"seq": 12, "codigo": "01002964", "pedido": "0098", "cliente": "BAIXINHO BEBIDAS  01", "endereco": "AV ASTOLENO LEAO, 846BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815320", "lat": -7.22106, "lon": -48.232401, "dist_anterior_km": 0.43660000000000004, "dist_proxima_km": 0.4476}, {"seq": 13, "codigo": "01001253", "pedido": "0096", "cliente": "MARCADINHO PATRIA", "endereco": "AV ASTOLFO LEAO BORGES, 1621 -QD105 LT11BAIRRO NOVA ARAGUAINARAGUAINATO - BAIRRO NOVA ARAGUAIN - ARAGUAINA/TO - CEP 77815321", "lat": -7.221348, "lon": -48.233857, "dist_anterior_km": 0.4476, "dist_proxima_km": 2.2214}, {"seq": 14, "codigo": "01002563", "pedido": "0088", "cliente": "PESQUE PAG PRIMAVERA", "endereco": "RUA BR 153 KM 7 4 KM A DIRETA CHA PRIMAVERA - S/NZONA RURALARAGUAINATO - ZONA RURAL - ARAGUAINA/TO - CEP 77834899", "lat": -7.225023, "lon": -48.250028, "dist_anterior_km": 2.2214, "dist_proxima_km": 2.9696}, {"seq": 15, "codigo": "01000339", "pedido": "0051", "cliente": "PARK AQUATICO 3J", "endereco": "ROD BR 153 KM 132 A S/N -01217ZONA RURALARAGUAINATO - ZONA RURAL - ARAGUAINA/TO - CEP 77803010", "lat": -7.221585, "lon": -48.277048, "dist_anterior_km": 2.9696, "dist_proxima_km": 7.247199999999999}, {"seq": 16, "codigo": "01000530", "pedido": "0103", "cliente": "CONVENIENCIA 2 IRMAO", "endereco": "AV BERNARDO SAYAO SN, 187BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77825040", "lat": -7.206767, "lon": -48.241786, "dist_anterior_km": 7.247199999999999, "dist_proxima_km": 0.2396}, {"seq": 17, "codigo": "01000316", "pedido": "0104", "cliente": "NOQUEIRA BAR", "endereco": "AV LONTRA 1572, 1572 -01210BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77813520", "lat": -7.208011, "lon": -48.243047, "dist_anterior_km": 0.2396, "dist_proxima_km": 0.5346000000000001}, {"seq": 18, "codigo": "01001423", "pedido": "0108", "cliente": "SUPER MIX JK", "endereco": "AV LONTRA, 898BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816190", "lat": -7.204192, "lon": -48.242382, "dist_anterior_km": 0.5346000000000001, "dist_proxima_km": 0.011}, {"seq": 19, "codigo": "01000024", "pedido": "0106", "cliente": "MERCEA TRES IRMAOS", "endereco": "RUA CASTRO ALVES 17 S/N -01182BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816060", "lat": -7.204069, "lon": -48.242433, "dist_anterior_km": 0.011, "dist_proxima_km": 0.2055}, {"seq": 20, "codigo": "01000553", "pedido": "0101", "cliente": "BAR DO BAIXOTE", "endereco": "AV ARAGUACI 716, 716 -01242BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816180", "lat": -7.202979, "lon": -48.241587, "dist_anterior_km": 0.2055, "dist_proxima_km": 0.167}, {"seq": 21, "codigo": "01002567", "pedido": "0107", "cliente": "PEIXARIA CRISTAL", "endereco": "AV ARAGUACI, 171BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816180", "lat": -7.201644, "lon": -48.240871, "dist_anterior_km": 0.167, "dist_proxima_km": 0.25680000000000003}, {"seq": 22, "codigo": "01003002", "pedido": "0100", "cliente": "C/ DE CARNE ALVORADA", "endereco": "AV BERNARDO SAYAO, 316BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816192", "lat": -7.202642, "lon": -48.239892, "dist_anterior_km": 0.25680000000000003, "dist_proxima_km": 0.1206}, {"seq": 23, "codigo": "01001102", "pedido": "0102", "cliente": "BAR E RESTAURANTE JM", "endereco": "AV BERNARDO SAYAO 1 S/N -01290BAIRRO JKARAGUAINATO - BAIRRO JK - ARAGUAINA/TO - CEP 77816200", "lat": -7.203673, "lon": -48.240264, "dist_anterior_km": 0.1206, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.221045, -48.247636], [-7.222997, -48.243437], [-7.223639, -48.243783], [-7.222953, -48.245269], [-7.22276, -48.245675], [-7.222131, -48.245364], [-7.222396, -48.244774], [-7.223675, -48.24177], [-7.223546, -48.240578], [-7.221996, -48.241055], [-7.221775, -48.240333], [-7.221422, -48.239124], [-7.222763, -48.238705], [-7.223346, -48.240637], [-7.224255, -48.240353], [-7.22436, -48.242067], [-7.223581, -48.243946], [-7.224223, -48.244168], [-7.224113, -48.2444], [-7.223367, -48.245976], [-7.222131, -48.245364], [-7.223663, -48.241875], [-7.222956, -48.238625], [-7.224251, -48.238031], [-7.224172, -48.23778], [-7.223707, -48.236308], [-7.218493, -48.237877], [-7.218224, -48.237964], [-7.218503, -48.238892], [-7.218889, -48.240166], [-7.21938, -48.241823], [-7.221348, -48.241241], [-7.219352, -48.234634], [-7.218999, -48.233457], [-7.221196, -48.232809], [-7.221072, -48.232397], [-7.220535, -48.231318], [-7.221305, -48.23387], [-7.223451, -48.24157], [-7.220508, -48.24796], [-7.225042, -48.24998], [-7.225294, -48.250082], [-7.223172, -48.254538], [-7.223053, -48.255641], [-7.220832, -48.261974], [-7.219976, -48.266629], [-7.219169, -48.269031], [-7.220289, -48.271099], [-7.220523, -48.273711], [-7.220017, -48.275109], [-7.217918, -48.275319], [-7.217017, -48.275087], [-7.215077, -48.281181], [-7.217017, -48.275087], [-7.219383, -48.275271], [-7.220017, -48.275109], [-7.220339, -48.274639], [-7.220289, -48.271099], [-7.219169, -48.269031], [-7.219976, -48.266629], [-7.220832, -48.261974], [-7.223053, -48.255641], [-7.223172, -48.254538], [-7.225148, -48.250284], [-7.225294, -48.250082], [-7.232051, -48.252913], [-7.232413, -48.252896], [-7.232425, -48.252592], [-7.228532, -48.251478], [-7.206007, -48.240717], [-7.205925, -48.241098], [-7.206844, -48.24151], [-7.206747, -48.241779], [-7.206566, -48.24228], [-7.208031, -48.243006], [-7.208362, -48.24317], [-7.20803, -48.243822], [-7.20432, -48.242066], [-7.204176, -48.242374], [-7.204134, -48.242464], [-7.20399, -48.242771], [-7.20307, -48.242319], [-7.20339, -48.241629], [-7.203033, -48.241467], [-7.201661, -48.240835], [-7.202175, -48.239382], [-7.202753, -48.23965], [-7.203744, -48.240106]];
 const TRACADO_VOLTA = [[-7.203744, -48.240106], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-06';
 const ROTULO_ROTA = "RMB-6G43 - Motorista 730";
 const NUMERO_MOTORISTA = "730";
+const ROTA_ID = "RT001001";
+const VEICULO_ORIGINAL = "RMB-6G43";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "730";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>
