@@ -71,6 +71,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 .painel-linha.status-devolucao .p-status { color: #c00000; }
 .painel-linha.status-fechado .p-status { color: #b8860b; }
 .painel-linha.status-pendente .p-status { color: #bbb; }
+.btn-aviso { padding: 3px 8px; border-radius: 5px; border: 1.5px solid #ff6d00; color: #ff6d00; background: #fff; font-size: 0.66rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
 .painel-atualizado { text-align: center; font-size: 0.7rem; color: #888; padding: 8px; }
 .bloqueio { display: none; position: fixed; inset: 0; background: var(--azul); color: #fff; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
 body.bloqueado .bloqueio { display: flex; }
@@ -227,6 +228,7 @@ function renderizar() {
       return '<div class="painel-linha status-' + (status || 'pendente') + '">' +
         '<span class="p-seq">' + p.seq + '. ' + p.cliente + (p.mensagem ? ' <span class="tag-mensagem">aviso</span>' : '') + '</span>' +
         '<span class="p-status">' + RESPOSTA_STATUS[status] + '</span>' +
+        '<button class="btn-aviso" data-rota="' + rota.id + '" data-codigo="' + p.codigo + '">' + (p.mensagem ? 'Editar aviso' : 'Lancar aviso') + '</button>' +
         '</div>';
     }).join('');
     const card = document.createElement('div');
@@ -243,6 +245,31 @@ function renderizar() {
     painelEl.appendChild(card);
   });
 }
+
+// Permite ao supervisor lancar (ou editar) um aviso pra um pedido direto do
+// painel, sem precisar entrar no admin. Escuta cliques no botao "Lancar
+// aviso" via delegacao (o HTML das linhas e' recriado a cada renderizar()),
+// e grava so' o campo "mensagens" desse pedido, com merge:true -- assim nao
+// apaga um ajuste de motorista/veiculo/ordem que o admin/analista ja tenha
+// salvo nessa mesma rota.
+painelEl.addEventListener('click', ev => {
+  const btn = ev.target.closest('.btn-aviso');
+  if (!btn || !db) return;
+  const rotaId = btn.dataset.rota;
+  const codigo = btn.dataset.codigo;
+  const ajusteAtual = ultimosAjustes[rotaId];
+  const mensagemAtual = (ajusteAtual && ajusteAtual.mensagens && ajusteAtual.mensagens[codigo]) || '';
+  const novaMensagem = window.prompt('Aviso para o motorista sobre esse pedido:', mensagemAtual);
+  if (novaMensagem === null) return;
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + rotaId).set({
+    data: DATA_ISO,
+    rota_id: rotaId,
+    mensagens: { [codigo]: novaMensagem.trim() }
+  }, { merge: true }).catch(err => {
+    alert('Erro ao salvar o aviso. Confira sua internet e tente de novo.');
+    console.error(err);
+  });
+});
 
 // Ja renderiza a lista completa (todos "pendente") antes mesmo do Firestore
 // responder, pra pagina nao ficar em branco -- e depois atualiza sozinha,
