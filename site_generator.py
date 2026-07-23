@@ -77,6 +77,15 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 160px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
+.filtro-motorista { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--borda); flex-wrap: wrap; }
+.filtro-motorista label { font-size: 0.85rem; }
+.filtro-motorista select { font-size: 1rem; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--borda); flex: 1; min-width: 200px; }
+.mapa-geral-details { background: #fff; border-bottom: 1px solid var(--borda); }
+.mapa-geral-details summary { padding: 12px 16px; font-size: 0.85rem; font-weight: bold; color: var(--azul); cursor: pointer; }
+.mapa-geral { width: 100%; height: 60vh; min-height: 400px; }
+.legenda-motoristas { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 16px; font-size: 0.72rem; }
+.legenda-item { display: flex; align-items: center; gap: 5px; }
+.legenda-cor { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
 .aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
@@ -488,36 +497,21 @@ if (db && ROTA_ID) {{
 </html>
 """
 
-_INDEX_TEMPLATE = """<!doctype html>
-<html lang="pt-br">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<meta name="theme-color" content="#1f4e78">
-<title>{titulo_pagina} - PathFind</title>
-<style>{estilo}</style>
-</head>
-<body>
-<header>
-  <h1>{titulo_pagina}</h1>
-  <div class="marca">{marca}</div>
-  <div class="sub">Atualizado em {gerado_em}</div>
-</header>
-<div class="filtro-data">
+# --- filtro de Ano/Mes/Dia, reaproveitado em index/painel/admin/analista ---
+# HTML e JS ficam concatenados diretamente no texto de cada template (nao
+# via .format() separado, ja que os placeholders -- manifest_rel,
+# historico_base_rel, data_atual_iso/br, arquivo_destino -- so' tem valor
+# real no momento em que o template inteiro e' formatado).
+_HTML_FILTRO_DATA = """<div class="filtro-data">
   <label for="seletorAno">Ver rotas de:</label>
   <select id="seletorAno" class="compacta"></select>
   <select id="seletorMes" class="compacta"></select>
   <select id="seletorData"><option value="{data_atual_iso}">{data_atual_br} (hoje)</option></select>
   <a href="{hoje_rel}">Ir para hoje</a>
 </div>
-{link_painel_index}<main>
-  <ul class="lista-rotas">
-    {itens}
-  </ul>
-</main>
-<footer>Gerado automaticamente a partir do relatorio do dia.</footer>
+"""
 
-<script>
+_JS_FILTRO_DATA = """
 const NOMES_MESES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 fetch('{manifest_rel}').then(r => r.json()).then(dias => {{
   const selAno = document.getElementById('seletorAno');
@@ -580,9 +574,148 @@ fetch('{manifest_rel}').then(r => r.json()).then(dias => {{
     popularDias(selAno.value, selMes.value);
   }});
   selDia.addEventListener('change', () => {{
-    if (selDia.value) window.location.href = '{historico_base_rel}' + selDia.value + '/index.html';
+    if (selDia.value) window.location.href = '{historico_base_rel}' + selDia.value + '/{arquivo_destino}';
   }});
 }}).catch(() => {{}});
+"""
+
+# --- mapa combinado (todas as entregas do dia, coloridas por motorista) --
+# Reaproveitado em painel/admin/analista. Cada pagina monta sua propria
+# lista de grupos ([{{ rotulo, paradas: [{{lat,lon,seq,cliente}}] }}], ja
+# filtrada pelo motorista selecionado) e chama construirMapaGeral(grupos).
+# So' inicializa o Leaflet quando o <details> e' aberto pela 1a vez (o mapa
+# nao renderiza direito dentro de um container escondido, e nao faz sentido
+# pagar o custo de centenas de marcadores se ninguem abrir).
+_HTML_MAPA_GERAL = """<details class="mapa-geral-details" id="detalhesMapaGeral">
+  <summary>Ver mapa de todas as entregas de hoje</summary>
+  <div id="mapaGeral" class="mapa-geral"></div>
+  <div id="legendaMotoristas" class="legenda-motoristas"></div>
+</details>
+"""
+
+_JS_MAPA_GERAL = """
+const PALETA_CORES = ['#1f4e78','#c00000','#1e7e34','#b8860b','#6a1b9a','#008b8b','#d2691e','#4169e1','#a0522d','#2e8b57','#dc143c','#4682b4','#8b008b','#556b2f'];
+var mapaGeralInstancia = null;
+
+function corMotorista(indice) {{
+  return PALETA_CORES[indice % PALETA_CORES.length];
+}}
+
+function construirMapaGeral(grupos) {{
+  const mapa = L.map('mapaGeral', {{ preferCanvas: true }});
+  L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }}).addTo(mapa);
+
+  const iconeOrigem = L.divIcon({{
+    className: 'icone-origem',
+    html: '<div style="background:#c00000;color:#fff;border-radius:50%;width:22px;height:22px;' +
+          'display:flex;align-items:center;justify-content:center;font-size:12px;' +
+          'border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);">&#128666;</div>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  }});
+
+  const pontos = [[ORIGEM_GERAL.lat, ORIGEM_GERAL.lon]];
+  L.marker([ORIGEM_GERAL.lat, ORIGEM_GERAL.lon], {{ icon: iconeOrigem }})
+    .bindPopup('<b>Saida do caminhao</b>')
+    .addTo(mapa);
+
+  const legendaEl = document.getElementById('legendaMotoristas');
+  legendaEl.innerHTML = '';
+  grupos.forEach((grupo, i) => {{
+    const cor = corMotorista(i);
+    const item = document.createElement('div');
+    item.className = 'legenda-item';
+    item.innerHTML = '<span class="legenda-cor" style="background:' + cor + '"></span>' + grupo.rotulo;
+    legendaEl.appendChild(item);
+    grupo.paradas.forEach(p => {{
+      pontos.push([p.lat, p.lon]);
+      L.circleMarker([p.lat, p.lon], {{
+        radius: 7, color: '#fff', weight: 1.5, fillColor: cor, fillOpacity: 0.9
+      }}).bindPopup('<b>' + grupo.rotulo + '</b><br>' + p.seq + '. ' + p.cliente).addTo(mapa);
+    }});
+  }});
+  if (pontos.length) mapa.fitBounds(pontos, {{ padding: [30, 30] }});
+  return mapa;
+}}
+
+function atualizarMapaGeral() {{
+  try {{
+    const detalhes = document.getElementById('detalhesMapaGeral');
+    if (!detalhes || !detalhes.open) return;
+    if (mapaGeralInstancia) {{
+      mapaGeralInstancia.remove();
+      mapaGeralInstancia = null;
+    }}
+    mapaGeralInstancia = construirMapaGeral(gruposParaMapa(motoristaFiltroAtual()));
+  }} catch (e) {{
+    console.error('Falha ao montar o mapa combinado:', e);
+  }}
+}}
+
+const detalhesMapaGeralEl = document.getElementById('detalhesMapaGeral');
+if (detalhesMapaGeralEl) {{
+  detalhesMapaGeralEl.addEventListener('toggle', atualizarMapaGeral);
+}}
+"""
+
+# --- filtro de motorista, reaproveitado em painel/admin/analista ---------
+# So' cuida do <select> e de guardar o valor escolhido; quem decide o que
+# esconder/mostrar com esse valor e' cada pagina, numa funcao propria
+# chamada aplicarFiltroMotorista(id) (declarada com "function", nao arrow,
+# pra contar com hoisting e poder vir depois deste bloco no <script>).
+_HTML_FILTRO_MOTORISTA = """<div class="filtro-motorista">
+  <label for="seletorMotorista">Motorista:</label>
+  <select id="seletorMotorista"><option value="">Todos</option></select>
+</div>
+"""
+
+_JS_FILTRO_MOTORISTA = """
+var motoristaFiltroValor = '';
+function motoristaFiltroAtual() {{ return motoristaFiltroValor; }}
+
+function popularFiltroMotorista(rotas) {{
+  const sel = document.getElementById('seletorMotorista');
+  if (!sel) return;
+  rotas.forEach(r => {{
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.rotulo;
+    sel.appendChild(opt);
+  }});
+  sel.addEventListener('change', () => {{
+    motoristaFiltroValor = sel.value;
+    aplicarFiltroMotorista(motoristaFiltroValor);
+    atualizarMapaGeral();
+  }});
+}}
+"""
+
+_INDEX_TEMPLATE = """<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
+<title>{titulo_pagina} - PathFind</title>
+<style>{estilo}</style>
+</head>
+<body>
+<header>
+  <h1>{titulo_pagina}</h1>
+  <div class="marca">{marca}</div>
+  <div class="sub">Atualizado em {gerado_em}</div>
+</header>
+""" + _HTML_FILTRO_DATA + """{link_painel_index}<main>
+  <ul class="lista-rotas">
+    {itens}
+  </ul>
+</main>
+<footer>Gerado automaticamente a partir do relatorio do dia.</footer>
+
+<script>""" + _JS_FILTRO_DATA + """
 </script>
 </body>
 </html>
@@ -595,6 +728,7 @@ _PAINEL_TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="theme-color" content="#1f4e78">
 <title>Painel do supervisor - {data_atual_br}</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>{estilo}</style>
 </head>
 <body class="bloqueado">
@@ -612,15 +746,17 @@ _PAINEL_TEMPLATE = """<!doctype html>
   <div class="marca">{marca}</div>
   <div class="sub">Rotas de {data_atual_br}</div>
 </header>
-<main id="painel"></main>
+""" + _HTML_FILTRO_DATA + _HTML_FILTRO_MOTORISTA + _HTML_MAPA_GERAL + """<main id="painel"></main>
 <div class="painel-atualizado" id="statusConexao">Conectando ao painel em tempo real...</div>
 <footer><a href="index.html">Ver lista de rotas</a></footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const ROTAS = {rotas_json};
 const DATA_ISO = '{data_atual_iso}';
+const ORIGEM_GERAL = {origem_json};
 const painelEl = document.getElementById('painel');
 const statusConexaoEl = document.getElementById('statusConexao');
 
@@ -717,6 +853,7 @@ function renderizar() {{
     }}).join('');
     const card = document.createElement('div');
     card.className = 'painel-rota';
+    card.dataset.rotaId = rota.id;
     card.innerHTML =
       '<h2>' + rotuloComAjuste(rota, ajuste) + (ajuste ? ' <span class="tag-ajustada">ajustada</span>' : '') + '</h2>' +
       '<div class="painel-contagem">' +
@@ -727,6 +864,26 @@ function renderizar() {{
       '</div>' +
       '<div class="painel-linhas">' + linhas + '</div>';
     painelEl.appendChild(card);
+  }});
+  aplicarFiltroMotorista(motoristaFiltroAtual());
+}}
+
+// Esconde/mostra os cards de rota que nao batem com o motorista escolhido
+// no filtro (chamada toda vez que a lista e' redesenhada, ja que
+// renderizar() reconstroi o HTML do zero a cada atualizacao em tempo real).
+function aplicarFiltroMotorista(id) {{
+  document.querySelectorAll('.painel-rota').forEach(card => {{
+    card.style.display = (!id || card.dataset.rotaId === id) ? '' : 'none';
+  }});
+}}
+
+// Monta a lista de grupos (rotulo + paradas com lat/lon) pro mapa
+// combinado, aplicando o mesmo ajuste manual (motorista/ordem/exclusao)
+// que os cards da lista ja mostram -- e respeitando o filtro de motorista.
+function gruposParaMapa(idFiltro) {{
+  return ROTAS.filter(r => !idFiltro || r.id === idFiltro).map(r => {{
+    const ajuste = ultimosAjustes[r.id] || null;
+    return {{ rotulo: rotuloComAjuste(r, ajuste), paradas: aplicarAjustePartadas(r.paradas, ajuste) }};
   }});
 }}
 
@@ -754,6 +911,8 @@ painelEl.addEventListener('click', ev => {{
     console.error(err);
   }});
 }});
+
+popularFiltroMotorista(ROTAS);
 
 // Ja renderiza a lista completa (todos "pendente") antes mesmo do Firestore
 // responder, pra pagina nao ficar em branco -- e depois atualiza sozinha,
@@ -785,8 +944,10 @@ if (db) {{
         ultimosAjustes[d.rota_id] = d;
       }});
       renderizar();
+      atualizarMapaGeral();
     }}, err => console.error('Falha ao acompanhar ajustes manuais:', err));
 }}
+""" + _JS_FILTRO_DATA + _JS_FILTRO_MOTORISTA + _JS_MAPA_GERAL + """
 </script>
 </body>
 </html>
@@ -804,6 +965,7 @@ _JS_AJUSTE_ROTAS = """
 function montarCardAjuste(rota) {{
   const card = document.createElement('details');
   card.className = 'ajuste-rota';
+  card.dataset.rotaId = rota.id;
   card.innerHTML =
     '<summary>' + rota.rotulo + ' <small>(' + rota.paradas.length + ' paradas)</small></summary>' +
     '<div class="ajuste-campos">' +
@@ -959,6 +1121,7 @@ _ADMIN_TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="theme-color" content="#1f4e78">
 <title>Administracao de senhas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>{estilo}</style>
 </head>
 <body class="bloqueado">
@@ -975,7 +1138,7 @@ _ADMIN_TEMPLATE = """<!doctype html>
   <h1>Administracao de senhas</h1>
   <div class="marca">{marca}</div>
 </header>
-<main>
+""" + _HTML_FILTRO_DATA + _HTML_FILTRO_MOTORISTA + _HTML_MAPA_GERAL + """<main>
   <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
   <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
     Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
@@ -999,6 +1162,7 @@ _ADMIN_TEMPLATE = """<!doctype html>
 </main>
 <footer><a href="index.html">Ver lista de rotas</a></footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -1006,6 +1170,7 @@ const NUMERO_MIN = {numero_min};
 const NUMERO_MAX = {numero_max};
 const DATA_ISO = '{data_atual_iso}';
 const ROTAS_HOJE = {rotas_hoje_json};
+const ORIGEM_GERAL = {origem_json};
 const adminMsgEl = document.getElementById('adminMsg');
 
 let db = null;
@@ -1015,6 +1180,20 @@ try {{
 }} catch (e) {{
   console.error(e);
 }}
+
+// Filtro de motorista: esconde os cards de "Ajustar rotas de hoje" que nao
+// batem, e filtra o que aparece no mapa combinado (que aqui usa sempre as
+// paradas originais do PathFind, sem juntar ajuste manual -- o objetivo do
+// mapa aqui e' so' ajudar a enxergar onde fica tudo enquanto edita).
+function aplicarFiltroMotorista(id) {{
+  document.querySelectorAll('.ajuste-rota').forEach(card => {{
+    card.style.display = (!id || card.dataset.rotaId === id) ? '' : 'none';
+  }});
+}}
+function gruposParaMapa(idFiltro) {{
+  return ROTAS_HOJE.filter(r => !idFiltro || r.id === idFiltro).map(r => ({{ rotulo: r.rotulo, paradas: r.paradas }}));
+}}
+popularFiltroMotorista(ROTAS_HOJE);
 
 function senhaPadrao(numero) {{
   return numero + 'OG' + (numero % 10);
@@ -1112,6 +1291,7 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
     }});
   }});
 }}
+""" + _JS_FILTRO_DATA + _JS_FILTRO_MOTORISTA + _JS_MAPA_GERAL + """
 </script>
 </body>
 </html>
@@ -1125,6 +1305,7 @@ _ANALISTA_TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="theme-color" content="#1f4e78">
 <title>Painel do analista</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>{estilo}</style>
 </head>
 <body class="bloqueado">
@@ -1141,7 +1322,7 @@ _ANALISTA_TEMPLATE = """<!doctype html>
   <h1>Painel do analista</h1>
   <div class="marca">{marca}</div>
 </header>
-<main>
+""" + _HTML_FILTRO_DATA + _HTML_FILTRO_MOTORISTA + _HTML_MAPA_GERAL + """<main>
   <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
   <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
     Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
@@ -1153,6 +1334,7 @@ _ANALISTA_TEMPLATE = """<!doctype html>
 </main>
 <footer><a href="index.html">Ver lista de rotas</a></footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -1160,6 +1342,7 @@ const NUMERO_MIN = {numero_min};
 const NUMERO_MAX = {numero_max};
 const DATA_ISO = '{data_atual_iso}';
 const ROTAS_HOJE = {rotas_hoje_json};
+const ORIGEM_GERAL = {origem_json};
 
 let db = null;
 try {{
@@ -1168,6 +1351,16 @@ try {{
 }} catch (e) {{
   console.error(e);
 }}
+
+function aplicarFiltroMotorista(id) {{
+  document.querySelectorAll('.ajuste-rota').forEach(card => {{
+    card.style.display = (!id || card.dataset.rotaId === id) ? '' : 'none';
+  }});
+}}
+function gruposParaMapa(idFiltro) {{
+  return ROTAS_HOJE.filter(r => !idFiltro || r.id === idFiltro).map(r => ({{ rotulo: r.rotulo, paradas: r.paradas }}));
+}}
+popularFiltroMotorista(ROTAS_HOJE);
 
 {js_ajuste_rotas}
 
@@ -1198,6 +1391,7 @@ if (sessionStorage.getItem('analista_desbloqueado') === 'sim') {{
     }});
   }});
 }}
+""" + _JS_FILTRO_DATA + _JS_FILTRO_MOTORISTA + _JS_MAPA_GERAL + """
 </script>
 </body>
 </html>
@@ -1205,9 +1399,10 @@ if (sessionStorage.getItem('analista_desbloqueado') === 'sim') {{
 
 
 def _rotas_hoje_json(resultados: dict[str, ResultadoRota]) -> list[dict]:
-    """Estrutura das rotas do dia usada pelas telas de ajuste (admin e
-    analista): id estavel da rota, rotulo, veiculo/motorista originais e a
-    lista de paradas (seq/codigo/cliente) pra montar o formulario."""
+    """Estrutura das rotas do dia usada pelas telas de gestao (painel, admin
+    e analista): id estavel da rota, rotulo, veiculo/motorista originais e a
+    lista de paradas (seq/codigo/cliente/lat/lon) -- inclui coordenadas pra
+    poder desenhar tanto o formulario de ajuste quanto o mapa combinado."""
     return [
         {
             "id": resultado.rota,
@@ -1215,7 +1410,13 @@ def _rotas_hoje_json(resultados: dict[str, ResultadoRota]) -> list[dict]:
             "veiculo": veiculo_atual(resultado),
             "motorista_numero": numero_motorista(resultado),
             "paradas": [
-                {"seq": p.sequencia, "codigo": p.entrega.codigo_cliente, "cliente": p.entrega.cliente}
+                {
+                    "seq": p.sequencia,
+                    "codigo": p.entrega.codigo_cliente,
+                    "cliente": p.entrega.cliente,
+                    "lat": p.entrega.latitude,
+                    "lon": p.entrega.longitude,
+                }
                 for p in resultado.ordem_otimizada
             ],
         }
@@ -1227,21 +1428,35 @@ def gerar_admin(
     resultados: dict[str, ResultadoRota],
     docs_dir: str,
     data_iso: str,
+    data_br: str,
+    origem_lat: float,
+    origem_lon: float,
+    manifest_rel: str,
+    historico_base_rel: str,
+    hoje_rel: str,
 ) -> None:
-    """Gera docs/admin.html: pagina protegida pela senha administrativa,
-    onde da pra ver/trocar a senha de cada motorista (720 a 731), gerar as
-    senhas padrao de uma vez, e ajustar manualmente (motorista, veiculo,
-    ordem de visita, exclusao de parada, mensagem) as rotas de hoje."""
+    """Gera admin.html: pagina protegida pela senha administrativa, onde da
+    pra ver/trocar a senha de cada motorista (720 a 731), gerar as senhas
+    padrao de uma vez, e ajustar manualmente (motorista, veiculo, ordem de
+    visita, exclusao de parada, mensagem) as rotas do dia. Escrita tanto na
+    copia "de hoje" quanto arquivada, por isso recebe os mesmos parametros
+    de caminho relativo que _gerar_paginas ja usa pro filtro de data."""
     html_admin = _ADMIN_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
         numero_min=NUMERO_MOTORISTA_MIN,
         numero_max=NUMERO_MOTORISTA_MAX,
         data_atual_iso=data_iso,
+        data_atual_br=data_br,
         rotas_hoje_json=json.dumps(_rotas_hoje_json(resultados), ensure_ascii=False),
+        origem_json=json.dumps({"lat": origem_lat, "lon": origem_lon}),
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
         js_ajuste_rotas=_JS_AJUSTE_ROTAS_RENDERED,
+        manifest_rel=manifest_rel,
+        historico_base_rel=historico_base_rel,
+        hoje_rel=hoje_rel,
+        arquivo_destino="admin.html",
     )
     with open(os.path.join(docs_dir, "admin.html"), "w", encoding="utf-8") as f:
         f.write(html_admin)
@@ -1251,21 +1466,34 @@ def gerar_analista(
     resultados: dict[str, ResultadoRota],
     docs_dir: str,
     data_iso: str,
+    data_br: str,
+    origem_lat: float,
+    origem_lon: float,
+    manifest_rel: str,
+    historico_base_rel: str,
+    hoje_rel: str,
 ) -> None:
-    """Gera docs/analista.html: mesma tela de ajuste de rotas do admin.html
+    """Gera analista.html: mesma tela de ajuste de rotas do admin.html
     (motorista, veiculo, ordem, exclusao, mensagem), protegida por uma senha
     separada (colecao de motoristas, documento "analista"), sem acesso a
-    gestao de senhas."""
+    gestao de senhas. Escrita tanto na copia "de hoje" quanto arquivada,
+    mesmo padrao de _gerar_paginas."""
     html_analista = _ANALISTA_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
         numero_min=NUMERO_MOTORISTA_MIN,
         numero_max=NUMERO_MOTORISTA_MAX,
         data_atual_iso=data_iso,
+        data_atual_br=data_br,
         rotas_hoje_json=json.dumps(_rotas_hoje_json(resultados), ensure_ascii=False),
+        origem_json=json.dumps({"lat": origem_lat, "lon": origem_lon}),
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
         js_ajuste_rotas=_JS_AJUSTE_ROTAS_RENDERED,
+        manifest_rel=manifest_rel,
+        historico_base_rel=historico_base_rel,
+        hoje_rel=hoje_rel,
+        arquivo_destino="analista.html",
     )
     with open(os.path.join(docs_dir, "analista.html"), "w", encoding="utf-8") as f:
         f.write(html_analista)
@@ -1277,33 +1505,33 @@ def gerar_painel(
     data_iso: str,
     data_br: str,
     gerado_em: str,
+    origem_lat: float,
+    origem_lon: float,
+    manifest_rel: str,
+    historico_base_rel: str,
+    hoje_rel: str,
 ) -> None:
-    """Gera docs/painel.html: uma pagina so' pro supervisor, com o status de
+    """Gera painel.html: uma pagina so' pro supervisor, com o status de
     entrega de TODAS as rotas do dia, atualizando sozinha em tempo real
-    (Firestore onSnapshot) conforme os motoristas forem marcando."""
-    rotas_json = [
-        {
-            "id": resultado.rota,
-            "rotulo": rotulo_rota(resultado),
-            "veiculo": veiculo_atual(resultado),
-            "motorista_numero": numero_motorista(resultado),
-            "paradas": [
-                {"seq": p.sequencia, "codigo": p.entrega.codigo_cliente, "cliente": p.entrega.cliente}
-                for p in resultado.ordem_otimizada
-            ],
-        }
-        for _, resultado in sorted(resultados.items())
-    ]
+    (Firestore onSnapshot) conforme os motoristas forem marcando. Escrita
+    tanto na copia "de hoje" (docs/) quanto arquivada
+    (docs/historico/<data>/), por isso recebe os mesmos parametros de
+    caminho relativo que _gerar_paginas ja usa pro filtro de data."""
     html_painel = _PAINEL_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
         data_atual_iso=data_iso,
         data_atual_br=data_br,
-        rotas_json=json.dumps(rotas_json, ensure_ascii=False),
+        rotas_json=json.dumps(_rotas_hoje_json(resultados), ensure_ascii=False),
+        origem_json=json.dumps({"lat": origem_lat, "lon": origem_lon}),
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao=FIRESTORE_COLECAO_STATUS,
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
         firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES,
+        manifest_rel=manifest_rel,
+        historico_base_rel=historico_base_rel,
+        hoje_rel=hoje_rel,
+        arquivo_destino="painel.html",
     )
     with open(os.path.join(docs_dir, "painel.html"), "w", encoding="utf-8") as f:
         f.write(html_painel)
@@ -1487,6 +1715,7 @@ def _gerar_paginas(
         data_atual_iso=data_atual_iso,
         data_atual_br=data_atual_br,
         link_painel_index=link_painel_index,
+        arquivo_destino="index.html",
     )
     caminho_index = os.path.join(base_dir, "index.html")
     with open(caminho_index, "w", encoding="utf-8") as f:
@@ -1575,16 +1804,33 @@ def gerar_site(
         )
         arquivos_gerados.extend(arquivos_hoje)
 
-        gerar_painel(resultados, docs_dir, data_iso, data_br, gerado_em)
+        gerar_painel(
+            resultados, docs_dir, data_iso, data_br, gerado_em, origem_lat, origem_lon,
+            manifest_rel="historico/manifest.json",
+            historico_base_rel="historico/",
+            hoje_rel="painel.html",
+        )
         arquivos_gerados.append("painel.html")
 
-        gerar_admin(resultados, docs_dir, data_iso)
+        gerar_admin(
+            resultados, docs_dir, data_iso, data_br, origem_lat, origem_lon,
+            manifest_rel="historico/manifest.json",
+            historico_base_rel="historico/",
+            hoje_rel="admin.html",
+        )
         arquivos_gerados.append("admin.html")
 
-        gerar_analista(resultados, docs_dir, data_iso)
+        gerar_analista(
+            resultados, docs_dir, data_iso, data_br, origem_lat, origem_lon,
+            manifest_rel="historico/manifest.json",
+            historico_base_rel="historico/",
+            hoje_rel="analista.html",
+        )
         arquivos_gerados.append("analista.html")
 
     # Copia arquivada do dia, para o filtro de data poder consultar depois.
+    # painel/admin/analista tambem passam a existir por dia (nao so' "de
+    # hoje"), pra dar pro supervisor/admin/analista olhar um dia anterior.
     arquivos_dia = _gerar_paginas(
         resultados, dia_dir, origem_lat, origem_lon, gerado_em,
         titulo_pagina=f"Rotas de {data_br}",
@@ -1595,6 +1841,30 @@ def gerar_site(
         data_atual_br=data_br,
     )
     arquivos_gerados.extend(os.path.join("historico", data_iso, a) for a in arquivos_dia)
+
+    gerar_painel(
+        resultados, dia_dir, data_iso, data_br, gerado_em, origem_lat, origem_lon,
+        manifest_rel="../manifest.json",
+        historico_base_rel="../",
+        hoje_rel="../../painel.html",
+    )
+    arquivos_gerados.append(os.path.join("historico", data_iso, "painel.html"))
+
+    gerar_admin(
+        resultados, dia_dir, data_iso, data_br, origem_lat, origem_lon,
+        manifest_rel="../manifest.json",
+        historico_base_rel="../",
+        hoje_rel="../../admin.html",
+    )
+    arquivos_gerados.append(os.path.join("historico", data_iso, "admin.html"))
+
+    gerar_analista(
+        resultados, dia_dir, data_iso, data_br, origem_lat, origem_lon,
+        manifest_rel="../manifest.json",
+        historico_base_rel="../",
+        hoje_rel="../../analista.html",
+    )
+    arquivos_gerados.append(os.path.join("historico", data_iso, "analista.html"))
 
     _atualizar_manifest(historico_dir, data_iso, data_br, gerado_em, len(resultados))
     arquivos_gerados.append(os.path.join("historico", "manifest.json"))
