@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>RMB-6G37 - Motorista 723</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:09</div>
+  <div class="sub">Atualizado em 22/07/2026 22:23</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01030117", "cliente": "BAR DO MARANHAO", "endereco": "RU1 BABACULANDIA S/NVILA CORRETEBABACULANDIATO - VILA CORRETE - BABACULANDIA/TO - CEP 77870000", "lat": -7.210198, "lon": -47.900551, "dist_anterior_km": 51.7919, "dist_proxima_km": 14.212200000000001}, {"seq": 2, "codigo": "01030002", "cliente": "CONVENIENCIA NO GRAU", "endereco": "RUA SEBASTIAO DE SOUSA S/NAREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.192327, "lon": -47.782749, "dist_anterior_km": 14.212200000000001, "dist_proxima_km": 0.1108}, {"seq": 3, "codigo": "01030008", "cliente": "COMER VALADARES", "endereco": "RUA SEBASTIAO DE SOUSA, 465 -01508CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.192575, "lon": -47.781778, "dist_anterior_km": 0.1108, "dist_proxima_km": 0.44880000000000003}, {"seq": 4, "codigo": "01030126", "cliente": "EMPORIO ROSA", "endereco": "RU1 LUIS MARTINS AGUIAR, 3553AREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.192635, "lon": -47.778518, "dist_anterior_km": 0.44880000000000003, "dist_proxima_km": 0.4188}, {"seq": 5, "codigo": "01030132", "cliente": "CHEGA PRA CA", "endereco": "RU1 SEBASTIAO DE SOUSA, 9AREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.19413, "lon": -47.775847, "dist_anterior_km": 0.4188, "dist_proxima_km": 0.411}, {"seq": 6, "codigo": "01030108", "cliente": "ADEGAO DO BOY", "endereco": "RU1 LUIS MARTINS AGUIAR S/NBAIRRO RUA DE AREIABABACULANDIATO - BAIRRO RUA DE AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.194447, "lon": -47.772813, "dist_anterior_km": 0.411, "dist_proxima_km": 0.0434}, {"seq": 7, "codigo": "01030084", "cliente": "MERCEARIA MARTINS 01", "endereco": "RU1 LUIZ MARTINS AGUIAR S/NBAIRRO RUA DE AREIABABACULANDIATO - BAIRRO RUA DE AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.194723, "lon": -47.772696, "dist_anterior_km": 0.0434, "dist_proxima_km": 1.3242}, {"seq": 8, "codigo": "01030145", "cliente": "LAGUN", "endereco": "RU1 CONEGO JOAO LIMA, 1490CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.200953, "lon": -47.76262, "dist_anterior_km": 1.3242, "dist_proxima_km": 0.0767}, {"seq": 9, "codigo": "01030146", "cliente": "KING BURGUER", "endereco": "11R GETULIO VARGAS S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201261, "lon": -47.761998, "dist_anterior_km": 0.0767, "dist_proxima_km": 0.044700000000000004}, {"seq": 10, "codigo": "01030003", "cliente": "MERCEARIA BEZERRA", "endereco": "RUA GETULIO VARGAS, 1471 -01503CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201479, "lon": -47.761653, "dist_anterior_km": 0.044700000000000004, "dist_proxima_km": 0.2935}, {"seq": 11, "codigo": "01030128", "cliente": "GOLD BAR          01", "endereco": "RU1 LUIZ MARTINS AGUIAR, 2473CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201298, "lon": -47.759731, "dist_anterior_km": 0.2935, "dist_proxima_km": 0.1534}, {"seq": 12, "codigo": "01030125", "cliente": "REST PORTAL DO LAGO", "endereco": "RU1 CASTELO BRANCO 1 S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.202411, "lon": -47.758298, "dist_anterior_km": 0.1534, "dist_proxima_km": 0.2447}, {"seq": 13, "codigo": "01030001", "cliente": "FARMACIA DO ADAO", "endereco": "RUA SANTOS DUMONT 9 S/N -01501CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.203347, "lon": -47.760014, "dist_anterior_km": 0.2447, "dist_proxima_km": 0.2801}, {"seq": 14, "codigo": "01030139", "cliente": "BAR DA GENEVRA", "endereco": "RU1 GETULIO VARGAS, 728CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.205023, "lon": -47.760175, "dist_anterior_km": 0.2801, "dist_proxima_km": 0.3633}, {"seq": 15, "codigo": "01030149", "cliente": "GELO SILVA COMERCIO", "endereco": "RU1 RUA LUIZ MARTINS DE AGUIAR S/NAREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.2050474, "lon": -47.758025, "dist_anterior_km": 0.3633, "dist_proxima_km": 0.3555}, {"seq": 16, "codigo": "01030015", "cliente": "EMPORIO DO LAGO", "endereco": "RUA CASTELO BRANCO, 465 -01515CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204795, "lon": -47.755416, "dist_anterior_km": 0.3555, "dist_proxima_km": 0.07690000000000001}, {"seq": 17, "codigo": "01030065", "cliente": "BAR E RETOUR MARESIA", "endereco": "RUA CASTELO BRANCO ORLA S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204611, "lon": -47.755746, "dist_anterior_km": 0.07690000000000001, "dist_proxima_km": 0.3953}, {"seq": 18, "codigo": "01030133", "cliente": "ESQUINA BAR       01", "endereco": "RU1 GETULIO ARTIOAGA, 396CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.207193, "lon": -47.754633, "dist_anterior_km": 0.3953, "dist_proxima_km": 0.0861}, {"seq": 19, "codigo": "01030140", "cliente": "MERCEARIA FM", "endereco": "AV GETULIO VARGAS, 297CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.207916, "lon": -47.75441, "dist_anterior_km": 0.0861, "dist_proxima_km": 1.1693}, {"seq": 20, "codigo": "01030131", "cliente": "BAR DA SIMONE     01", "endereco": "RU1 MANOEL BRAGA S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.205906, "lon": -47.761536, "dist_anterior_km": 1.1693, "dist_proxima_km": 0.5649}, {"seq": 21, "codigo": "01030143", "cliente": "BAR DA PEDRNA", "endereco": "RU1 JARDIM DAS FLORES QD03 S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204111, "lon": -47.764806, "dist_anterior_km": 0.5649, "dist_proxima_km": 0.2142}, {"seq": 22, "codigo": "01030103", "cliente": "VIVEIROS BAR", "endereco": "RU1 RURAL RURAL QD03 LT 12 S/NVILA NOVO MILENIO 2BABACULANDIATO - VILA NOVO MILENIO 2 - BABACULANDIA/TO - CEP 77870000", "lat": -7.205496, "lon": -47.764053, "dist_anterior_km": 0.2142, "dist_proxima_km": 43.5971}, {"seq": 23, "codigo": "01080121", "cliente": "CONV POSTO FILADELFI", "endereco": "RUI TOCANTINS S/NCENTROFILADELFIATO - CENTRO - FILADELFIA/TO - CEP 77750000", "lat": -7.339423, "lon": -47.512466, "dist_anterior_km": 43.5971, "dist_proxima_km": 3.8223000000000003}, {"seq": 24, "codigo": "01080041", "cliente": "LANCH DO RIO", "endereco": "RUA NOVA LAGO AZUL S S/N -01666CENTROFILADELFIATO - CENTRO - FILADELFIA/TO - CEP 77795000", "lat": -7.339052, "lon": -47.483893, "dist_anterior_km": 3.8223000000000003, "dist_proxima_km": 0.030600000000000002}, {"seq": 25, "codigo": "01080102", "cliente": "LANCHONETE FILADELFI", "endereco": "RUA ATRACADOR DA BALSA S/NBEIRA RIOFILADELFIATO - BEIRA RIO - FILADELFIA/TO - CEP 77795000", "lat": -7.338817, "lon": -47.483822, "dist_anterior_km": 0.030600000000000002, "dist_proxima_km": 51.393800000000006}, {"seq": 26, "codigo": "01080125", "cliente": "COM SANTA LUZIA", "endereco": "RUA POVOADO BIELANDIA S/NPOVOADO BIELANDIAFILADELFIATO - POVOADO BIELANDIA - FILADELFIA/TO - CEP 77795000", "lat": -7.482538, "lon": -47.859971, "dist_anterior_km": 51.393800000000006, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01030117", "pedido": "0137", "cliente": "BAR DO MARANHAO", "endereco": "RU1 BABACULANDIA S/NVILA CORRETEBABACULANDIATO - VILA CORRETE - BABACULANDIA/TO - CEP 77870000", "lat": -7.210198, "lon": -47.900551, "dist_anterior_km": 51.7919, "dist_proxima_km": 14.212200000000001}, {"seq": 2, "codigo": "01030002", "pedido": "0308", "cliente": "CONVENIENCIA NO GRAU", "endereco": "RUA SEBASTIAO DE SOUSA S/NAREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.192327, "lon": -47.782749, "dist_anterior_km": 14.212200000000001, "dist_proxima_km": 0.1108}, {"seq": 3, "codigo": "01030008", "pedido": "0305", "cliente": "COMER VALADARES", "endereco": "RUA SEBASTIAO DE SOUSA, 465 -01508CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.192575, "lon": -47.781778, "dist_anterior_km": 0.1108, "dist_proxima_km": 0.44880000000000003}, {"seq": 4, "codigo": "01030126", "pedido": "0116", "cliente": "EMPORIO ROSA", "endereco": "RU1 LUIS MARTINS AGUIAR, 3553AREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.192635, "lon": -47.778518, "dist_anterior_km": 0.44880000000000003, "dist_proxima_km": 0.4188}, {"seq": 5, "codigo": "01030132", "pedido": "0126", "cliente": "CHEGA PRA CA", "endereco": "RU1 SEBASTIAO DE SOUSA, 9AREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.19413, "lon": -47.775847, "dist_anterior_km": 0.4188, "dist_proxima_km": 0.411}, {"seq": 6, "codigo": "01030108", "pedido": "0111", "cliente": "ADEGAO DO BOY", "endereco": "RU1 LUIS MARTINS AGUIAR S/NBAIRRO RUA DE AREIABABACULANDIATO - BAIRRO RUA DE AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.194447, "lon": -47.772813, "dist_anterior_km": 0.411, "dist_proxima_km": 0.0434}, {"seq": 7, "codigo": "01030084", "pedido": "0109", "cliente": "MERCEARIA MARTINS 01", "endereco": "RU1 LUIZ MARTINS AGUIAR S/NBAIRRO RUA DE AREIABABACULANDIATO - BAIRRO RUA DE AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.194723, "lon": -47.772696, "dist_anterior_km": 0.0434, "dist_proxima_km": 1.3242}, {"seq": 8, "codigo": "01030145", "pedido": "0107", "cliente": "LAGUN", "endereco": "RU1 CONEGO JOAO LIMA, 1490CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.200953, "lon": -47.76262, "dist_anterior_km": 1.3242, "dist_proxima_km": 0.0767}, {"seq": 9, "codigo": "01030146", "pedido": "0160", "cliente": "KING BURGUER", "endereco": "11R GETULIO VARGAS S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201261, "lon": -47.761998, "dist_anterior_km": 0.0767, "dist_proxima_km": 0.044700000000000004}, {"seq": 10, "codigo": "01030003", "pedido": "0106", "cliente": "MERCEARIA BEZERRA", "endereco": "RUA GETULIO VARGAS, 1471 -01503CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201479, "lon": -47.761653, "dist_anterior_km": 0.044700000000000004, "dist_proxima_km": 0.2935}, {"seq": 11, "codigo": "01030128", "pedido": "0178", "cliente": "GOLD BAR          01", "endereco": "RU1 LUIZ MARTINS AGUIAR, 2473CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.201298, "lon": -47.759731, "dist_anterior_km": 0.2935, "dist_proxima_km": 0.1534}, {"seq": 12, "codigo": "01030125", "pedido": "0101", "cliente": "REST PORTAL DO LAGO", "endereco": "RU1 CASTELO BRANCO 1 S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.202411, "lon": -47.758298, "dist_anterior_km": 0.1534, "dist_proxima_km": 0.2447}, {"seq": 13, "codigo": "01030001", "pedido": "0132", "cliente": "FARMACIA DO ADAO", "endereco": "RUA SANTOS DUMONT 9 S/N -01501CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.203347, "lon": -47.760014, "dist_anterior_km": 0.2447, "dist_proxima_km": 0.2801}, {"seq": 14, "codigo": "01030139", "pedido": "0163", "cliente": "BAR DA GENEVRA", "endereco": "RU1 GETULIO VARGAS, 728CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.205023, "lon": -47.760175, "dist_anterior_km": 0.2801, "dist_proxima_km": 0.3633}, {"seq": 15, "codigo": "01030149", "pedido": "0112", "cliente": "GELO SILVA COMERCIO", "endereco": "RU1 RUA LUIZ MARTINS DE AGUIAR S/NAREIABABACULANDIATO - AREIA - BABACULANDIA/TO - CEP 77870000", "lat": -7.2050474, "lon": -47.758025, "dist_anterior_km": 0.3633, "dist_proxima_km": 0.3555}, {"seq": 16, "codigo": "01030015", "pedido": "0307", "cliente": "EMPORIO DO LAGO", "endereco": "RUA CASTELO BRANCO, 465 -01515CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204795, "lon": -47.755416, "dist_anterior_km": 0.3555, "dist_proxima_km": 0.07690000000000001}, {"seq": 17, "codigo": "01030065", "pedido": "0304", "cliente": "BAR E RETOUR MARESIA", "endereco": "RUA CASTELO BRANCO ORLA S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204611, "lon": -47.755746, "dist_anterior_km": 0.07690000000000001, "dist_proxima_km": 0.3953}, {"seq": 18, "codigo": "01030133", "pedido": "0303", "cliente": "ESQUINA BAR       01", "endereco": "RU1 GETULIO ARTIOAGA, 396CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.207193, "lon": -47.754633, "dist_anterior_km": 0.3953, "dist_proxima_km": 0.0861}, {"seq": 19, "codigo": "01030140", "pedido": "0120", "cliente": "MERCEARIA FM", "endereco": "AV GETULIO VARGAS, 297CENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.207916, "lon": -47.75441, "dist_anterior_km": 0.0861, "dist_proxima_km": 1.1693}, {"seq": 20, "codigo": "01030131", "pedido": "0159", "cliente": "BAR DA SIMONE     01", "endereco": "RU1 MANOEL BRAGA S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.205906, "lon": -47.761536, "dist_anterior_km": 1.1693, "dist_proxima_km": 0.5649}, {"seq": 21, "codigo": "01030143", "pedido": "0134", "cliente": "BAR DA PEDRNA", "endereco": "RU1 JARDIM DAS FLORES QD03 S/NCENTROBABACULANDIATO - CENTRO - BABACULANDIA/TO - CEP 77870000", "lat": -7.204111, "lon": -47.764806, "dist_anterior_km": 0.5649, "dist_proxima_km": 0.2142}, {"seq": 22, "codigo": "01030103", "pedido": "0136", "cliente": "VIVEIROS BAR", "endereco": "RU1 RURAL RURAL QD03 LT 12 S/NVILA NOVO MILENIO 2BABACULANDIATO - VILA NOVO MILENIO 2 - BABACULANDIA/TO - CEP 77870000", "lat": -7.205496, "lon": -47.764053, "dist_anterior_km": 0.2142, "dist_proxima_km": 43.5971}, {"seq": 23, "codigo": "01080121", "pedido": "0300", "cliente": "CONV POSTO FILADELFI", "endereco": "RUI TOCANTINS S/NCENTROFILADELFIATO - CENTRO - FILADELFIA/TO - CEP 77750000", "lat": -7.339423, "lon": -47.512466, "dist_anterior_km": 43.5971, "dist_proxima_km": 3.8223000000000003}, {"seq": 24, "codigo": "01080041", "pedido": "0297", "cliente": "LANCH DO RIO", "endereco": "RUA NOVA LAGO AZUL S S/N -01666CENTROFILADELFIATO - CENTRO - FILADELFIA/TO - CEP 77795000", "lat": -7.339052, "lon": -47.483893, "dist_anterior_km": 3.8223000000000003, "dist_proxima_km": 0.030600000000000002}, {"seq": 25, "codigo": "01080102", "pedido": "0306", "cliente": "LANCHONETE FILADELFI", "endereco": "RUA ATRACADOR DA BALSA S/NBEIRA RIOFILADELFIATO - BEIRA RIO - FILADELFIA/TO - CEP 77795000", "lat": -7.338817, "lon": -47.483822, "dist_anterior_km": 0.030600000000000002, "dist_proxima_km": 51.393800000000006}, {"seq": 26, "codigo": "01080125", "pedido": "0143", "cliente": "COM SANTA LUZIA", "endereco": "RUA POVOADO BIELANDIA S/NPOVOADO BIELANDIAFILADELFIATO - POVOADO BIELANDIA - FILADELFIA/TO - CEP 77795000", "lat": -7.482538, "lon": -47.859971, "dist_anterior_km": 51.393800000000006, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.207152, -48.241101], [-7.198869, -48.189118], [-7.213355, -48.169196], [-7.305427, -48.105957], [-7.317072, -48.094441], [-7.325258, -48.073215], [-7.289897, -48.005267], [-7.242425, -47.96802], [-7.22606, -47.920623], [-7.210276, -47.900548], [-7.209775, -47.871924], [-7.199868, -47.853551], [-7.204555, -47.809197], [-7.192408, -47.782767], [-7.192617, -47.781786], [-7.192644, -47.778471], [-7.194218, -47.775885], [-7.19443, -47.77285], [-7.194654, -47.772666], [-7.200988, -47.762637], [-7.20128, -47.762007], [-7.201449, -47.761639], [-7.20176, -47.759531], [-7.202619, -47.758482], [-7.203295, -47.759974], [-7.204928, -47.760271], [-7.204828, -47.757889], [-7.204874, -47.75533], [-7.204462, -47.755661], [-7.207246, -47.754618], [-7.207932, -47.75446], [-7.205951, -47.761472], [-7.203969, -47.764958], [-7.204837, -47.763601], [-7.211261, -47.757126], [-7.246639, -47.775802], [-7.251178, -47.768233], [-7.245159, -47.75634], [-7.255302, -47.740633], [-7.272823, -47.731819], [-7.285999, -47.713859], [-7.31778, -47.69164], [-7.316796, -47.671625], [-7.322202, -47.657077], [-7.333976, -47.650578], [-7.320946, -47.620918], [-7.329688, -47.611401], [-7.336163, -47.584059], [-7.345665, -47.581554], [-7.354163, -47.566523], [-7.339493, -47.512447], [-7.339023, -47.483873], [-7.338855, -47.483791], [-7.336094, -47.475076], [-7.338027, -47.503672], [-7.363063, -47.586534], [-7.371947, -47.593758], [-7.388413, -47.594812], [-7.407948, -47.60404], [-7.425979, -47.632258], [-7.436559, -47.677571], [-7.428621, -47.688116], [-7.428152, -47.717536], [-7.443658, -47.722126], [-7.472039, -47.747596], [-7.480817, -47.801759], [-7.466341, -47.838792], [-7.482479, -47.860054]];
 const TRACADO_VOLTA = [[-7.482479, -47.860054], [-7.487456, -47.867206], [-7.48449, -47.877072], [-7.489483, -47.896198], [-7.487278, -47.905636], [-7.494094, -47.915745], [-7.491917, -47.928499], [-7.479238, -47.941131], [-7.467829, -47.944132], [-7.454618, -47.957762], [-7.448496, -47.968672], [-7.422413, -47.996213], [-7.412948, -48.00018], [-7.407673, -48.007772], [-7.394799, -48.012341], [-7.378472, -48.00458], [-7.367968, -48.008816], [-7.35106, -48.044567], [-7.321478, -48.077469], [-7.316453, -48.095285], [-7.303313, -48.107701], [-7.213355, -48.169196], [-7.198269, -48.188637], [-7.202763, -48.203333], [-7.202817, -48.2209], [-7.208184, -48.235024], [-7.205925, -48.241098], [-7.232451, -48.252836], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-17';
 const ROTULO_ROTA = "RMB-6G37 - Motorista 723";
 const NUMERO_MOTORISTA = "723";
+const ROTA_ID = "RT001010";
+const VEICULO_ORIGINAL = "RMB-6G37";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "723";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>

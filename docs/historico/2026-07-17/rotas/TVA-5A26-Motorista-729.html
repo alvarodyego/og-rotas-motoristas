@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>TVA-5A26 - Motorista 729</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:09</div>
+  <div class="sub">Atualizado em 22/07/2026 22:23</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01180147", "cliente": "BAR DO SINTURA", "endereco": "POV CHACARA CAMPO ALEGRE S/NRURALNOVA OLINDATO - RURAL - NOVA OLINDA/TO - CEP 77790000", "lat": -7.484525, "lon": -48.3801, "dist_anterior_km": 34.412, "dist_proxima_km": 3.6783}, {"seq": 2, "codigo": "01180122", "cliente": "MERCADO ANDRADE", "endereco": "TVO BR 153 KM 180 S/NPOVOADO DO RIO PRETONOVA OLINDATO - POVOADO DO RIO PRETO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.513669, "lon": -48.393868, "dist_anterior_km": 3.6783, "dist_proxima_km": 0.0228}, {"seq": 3, "codigo": "01180144", "cliente": "DONA ONCA RESTAURANT", "endereco": "POV POVOADO RIO PRETO S/NPOVOADO DO RIO PRETONOVA OLINDATO - POVOADO DO RIO PRETO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.513523, "lon": -48.394017, "dist_anterior_km": 0.0228, "dist_proxima_km": 13.8457}, {"seq": 4, "codigo": "01180030", "cliente": "HOTEL E REST. WF", "endereco": "RUA ARAGUATINS, 765 -00119CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.62755, "lon": -48.425486, "dist_anterior_km": 13.8457, "dist_proxima_km": 0.056100000000000004}, {"seq": 5, "codigo": "01180206", "cliente": "ACOUGUE MARRUA", "endereco": "RU1 ARAGUATINS ESQ CAST BRANCO LT 14 QD13 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.62776, "lon": -48.425066, "dist_anterior_km": 0.056100000000000004, "dist_proxima_km": 0.0853}, {"seq": 6, "codigo": "01180180", "cliente": "ADEGA DO TUTI", "endereco": "RU1 ARAGUATINS QD 30 LT 17, 1134CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.627618, "lon": -48.42435, "dist_anterior_km": 0.0853, "dist_proxima_km": 0.2024}, {"seq": 7, "codigo": "01180194", "cliente": "CASA DE CARNE CANDEI", "endereco": "RU1 CASTELO BRANCO, 919CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628818, "lon": -48.425088, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.0837}, {"seq": 8, "codigo": "01180069", "cliente": "COMERCIAL RAMOS", "endereco": "RU1 CASTELO BRANCO, 845CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.629008, "lon": -48.425736, "dist_anterior_km": 0.0837, "dist_proxima_km": 0.022600000000000002}, {"seq": 9, "codigo": "01180013", "cliente": "ZEZINHOS BAR", "endereco": "RUA TOCANTINOPOLIS S/N -00102CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628748, "lon": -48.42577, "dist_anterior_km": 0.022600000000000002, "dist_proxima_km": 0.0756}, {"seq": 10, "codigo": "00030212", "cliente": "O TOCA DA ONCA", "endereco": "AV TOCANTINOPOLIS S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628591, "lon": -48.426211, "dist_anterior_km": 0.0756, "dist_proxima_km": 0.020399999999999998}, {"seq": 11, "codigo": "01180176", "cliente": "J B BEBIDAS", "endereco": "RU1 TOCANTINOPOLIS, 760CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628887, "lon": -48.4264, "dist_anterior_km": 0.020399999999999998, "dist_proxima_km": 0.507}, {"seq": 12, "codigo": "01180161", "cliente": "CASA DE CARNE E ADEG", "endereco": "RU1 RUI BARBOSA SALA 1 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.631458, "lon": -48.424456, "dist_anterior_km": 0.507, "dist_proxima_km": 0.060200000000000004}, {"seq": 13, "codigo": "01180019", "cliente": "BAR DO ABELHA", "endereco": "AV FILADELFIA, 1041 -00108CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.631503, "lon": -48.423911, "dist_anterior_km": 0.060200000000000004, "dist_proxima_km": 0.3292}, {"seq": 14, "codigo": "01180187", "cliente": "MARINAS KIOSKE    01", "endereco": "RUA URUACU SETOR BUENO, 1864CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.632881, "lon": -48.422093, "dist_anterior_km": 0.3292, "dist_proxima_km": 0.31089999999999995}, {"seq": 15, "codigo": "01180167", "cliente": "SUPER TREVO", "endereco": "RU1 ADEVALDO DE MORAES, 1142CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.633717, "lon": -48.423885, "dist_anterior_km": 0.31089999999999995, "dist_proxima_km": 0.3381}, {"seq": 16, "codigo": "01180103", "cliente": "MERCADO MOREIRA", "endereco": "RU1 ADERVALDO DE MORAIS, 788CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.633576, "lon": -48.426946, "dist_anterior_km": 0.3381, "dist_proxima_km": 0.9134}, {"seq": 17, "codigo": "01180199", "cliente": "REAL BEBIDAS MERCEAR", "endereco": "RU1 07 DE SETEMBRO QD72 LT09 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.634651, "lon": -48.419431, "dist_anterior_km": 0.9134, "dist_proxima_km": 0.6774}, {"seq": 18, "codigo": "01180205", "cliente": "MIX ESTRELA", "endereco": "RUI DUQUE DE CAXIAS LT17 QD40 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.639936, "lon": -48.418773, "dist_anterior_km": 0.6774, "dist_proxima_km": 0.2283}, {"seq": 19, "codigo": "01180198", "cliente": "MOURA DIST DE BEBIDA", "endereco": "RU1 MIRACEMA QD 04 LT 153 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77800000", "lat": -7.640625, "lon": -48.418615, "dist_anterior_km": 0.2283, "dist_proxima_km": 0.2024}, {"seq": 20, "codigo": "01180115", "cliente": "CALACIOS BAR", "endereco": "RU1 DUQUE DE CAXIAS, 1819CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.638791, "lon": -48.418627, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.3177}, {"seq": 21, "codigo": "01180163", "cliente": "BAR TUBARAO", "endereco": "RUA MIRACEMA CAIXA 02, 2118CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77780000", "lat": -7.638559, "lon": -48.415976, "dist_anterior_km": 0.3177, "dist_proxima_km": 0.4012}, {"seq": 22, "codigo": "01180145", "cliente": "BEBA MAIS CONVENIE01", "endereco": "RU1 PORTO NACIONAL, 1842CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.640777, "lon": -48.416508, "dist_anterior_km": 0.4012, "dist_proxima_km": 0.040799999999999996}, {"seq": 23, "codigo": "01180174", "cliente": "BAR DO GALEGO     01", "endereco": "RU1 GETULIO VARGAS, 2054SETOR CARDOSONOVA OLINDATO - SETOR CARDOSO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.640697, "lon": -48.416132, "dist_anterior_km": 0.040799999999999996, "dist_proxima_km": 0.1675}, {"seq": 24, "codigo": "01180009", "cliente": "MERCADINHO BUENO", "endereco": "AV GETULIO VARGAS SN S/N -00098CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.641995, "lon": -48.416403, "dist_anterior_km": 0.1675, "dist_proxima_km": 0.0828}, {"seq": 25, "codigo": "01180027", "cliente": "ADEGA DO TETEL", "endereco": "AV GETULIO VARGAS 1 S/N -00116CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.641882, "lon": -48.416801, "dist_anterior_km": 0.0828, "dist_proxima_km": 0.30110000000000003}, {"seq": 26, "codigo": "01180117", "cliente": "ACOUGUE FAMILIA", "endereco": "RU1 PORANGATU, 1598CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.642063, "lon": -48.419534, "dist_anterior_km": 0.30110000000000003, "dist_proxima_km": 0.1625}, {"seq": 27, "codigo": "01180181", "cliente": "BAR DO VEI", "endereco": "RU1 DUQUE DE CAXIAS, 2270CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.642927, "lon": -48.419001, "dist_anterior_km": 0.1625, "dist_proxima_km": 0.5701}, {"seq": 28, "codigo": "01180196", "cliente": "SAIDAS BAR", "endereco": "AV PERIMENTAL DOIS S/NSETOR CARDOSONOVA OLINDATO - SETOR CARDOSO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.643817, "lon": -48.414443, "dist_anterior_km": 0.5701, "dist_proxima_km": 2.925}, {"seq": 29, "codigo": "01180073", "cliente": "ADEGA RE", "endereco": "RU1 ITAGUATINS, 1079CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.626314, "lon": -48.423439, "dist_anterior_km": 2.925, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01180147", "pedido": "0182", "cliente": "BAR DO SINTURA", "endereco": "POV CHACARA CAMPO ALEGRE S/NRURALNOVA OLINDATO - RURAL - NOVA OLINDA/TO - CEP 77790000", "lat": -7.484525, "lon": -48.3801, "dist_anterior_km": 34.412, "dist_proxima_km": 3.6783}, {"seq": 2, "codigo": "01180122", "pedido": "0183", "cliente": "MERCADO ANDRADE", "endereco": "TVO BR 153 KM 180 S/NPOVOADO DO RIO PRETONOVA OLINDATO - POVOADO DO RIO PRETO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.513669, "lon": -48.393868, "dist_anterior_km": 3.6783, "dist_proxima_km": 0.0228}, {"seq": 3, "codigo": "01180144", "pedido": "0193", "cliente": "DONA ONCA RESTAURANT", "endereco": "POV POVOADO RIO PRETO S/NPOVOADO DO RIO PRETONOVA OLINDATO - POVOADO DO RIO PRETO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.513523, "lon": -48.394017, "dist_anterior_km": 0.0228, "dist_proxima_km": 13.8457}, {"seq": 4, "codigo": "01180030", "pedido": "0185", "cliente": "HOTEL E REST. WF", "endereco": "RUA ARAGUATINS, 765 -00119CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.62755, "lon": -48.425486, "dist_anterior_km": 13.8457, "dist_proxima_km": 0.056100000000000004}, {"seq": 5, "codigo": "01180206", "pedido": "0186", "cliente": "ACOUGUE MARRUA", "endereco": "RU1 ARAGUATINS ESQ CAST BRANCO LT 14 QD13 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.62776, "lon": -48.425066, "dist_anterior_km": 0.056100000000000004, "dist_proxima_km": 0.0853}, {"seq": 6, "codigo": "01180180", "pedido": "0208", "cliente": "ADEGA DO TUTI", "endereco": "RU1 ARAGUATINS QD 30 LT 17, 1134CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.627618, "lon": -48.42435, "dist_anterior_km": 0.0853, "dist_proxima_km": 0.2024}, {"seq": 7, "codigo": "01180194", "pedido": "0188", "cliente": "CASA DE CARNE CANDEI", "endereco": "RU1 CASTELO BRANCO, 919CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628818, "lon": -48.425088, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.0837}, {"seq": 8, "codigo": "01180069", "pedido": "0187", "cliente": "COMERCIAL RAMOS", "endereco": "RU1 CASTELO BRANCO, 845CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.629008, "lon": -48.425736, "dist_anterior_km": 0.0837, "dist_proxima_km": 0.022600000000000002}, {"seq": 9, "codigo": "01180013", "pedido": "0203", "cliente": "ZEZINHOS BAR", "endereco": "RUA TOCANTINOPOLIS S/N -00102CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628748, "lon": -48.42577, "dist_anterior_km": 0.022600000000000002, "dist_proxima_km": 0.0756}, {"seq": 10, "codigo": "00030212", "pedido": "0184", "cliente": "O TOCA DA ONCA", "endereco": "AV TOCANTINOPOLIS S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628591, "lon": -48.426211, "dist_anterior_km": 0.0756, "dist_proxima_km": 0.020399999999999998}, {"seq": 11, "codigo": "01180176", "pedido": "0207", "cliente": "J B BEBIDAS", "endereco": "RU1 TOCANTINOPOLIS, 760CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.628887, "lon": -48.4264, "dist_anterior_km": 0.020399999999999998, "dist_proxima_km": 0.507}, {"seq": 12, "codigo": "01180161", "pedido": "0191", "cliente": "CASA DE CARNE E ADEG", "endereco": "RU1 RUI BARBOSA SALA 1 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.631458, "lon": -48.424456, "dist_anterior_km": 0.507, "dist_proxima_km": 0.060200000000000004}, {"seq": 13, "codigo": "01180019", "pedido": "0209", "cliente": "BAR DO ABELHA", "endereco": "AV FILADELFIA, 1041 -00108CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.631503, "lon": -48.423911, "dist_anterior_km": 0.060200000000000004, "dist_proxima_km": 0.3292}, {"seq": 14, "codigo": "01180187", "pedido": "0190", "cliente": "MARINAS KIOSKE    01", "endereco": "RUA URUACU SETOR BUENO, 1864CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.632881, "lon": -48.422093, "dist_anterior_km": 0.3292, "dist_proxima_km": 0.31089999999999995}, {"seq": 15, "codigo": "01180167", "pedido": "0181", "cliente": "SUPER TREVO", "endereco": "RU1 ADEVALDO DE MORAES, 1142CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.633717, "lon": -48.423885, "dist_anterior_km": 0.31089999999999995, "dist_proxima_km": 0.3381}, {"seq": 16, "codigo": "01180103", "pedido": "0151", "cliente": "MERCADO MOREIRA", "endereco": "RU1 ADERVALDO DE MORAIS, 788CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.633576, "lon": -48.426946, "dist_anterior_km": 0.3381, "dist_proxima_km": 0.9134}, {"seq": 17, "codigo": "01180199", "pedido": "0201", "cliente": "REAL BEBIDAS MERCEAR", "endereco": "RU1 07 DE SETEMBRO QD72 LT09 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.634651, "lon": -48.419431, "dist_anterior_km": 0.9134, "dist_proxima_km": 0.6774}, {"seq": 18, "codigo": "01180205", "pedido": "0199", "cliente": "MIX ESTRELA", "endereco": "RUI DUQUE DE CAXIAS LT17 QD40 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.639936, "lon": -48.418773, "dist_anterior_km": 0.6774, "dist_proxima_km": 0.2283}, {"seq": 19, "codigo": "01180198", "pedido": "0202", "cliente": "MOURA DIST DE BEBIDA", "endereco": "RU1 MIRACEMA QD 04 LT 153 S/NCENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77800000", "lat": -7.640625, "lon": -48.418615, "dist_anterior_km": 0.2283, "dist_proxima_km": 0.2024}, {"seq": 20, "codigo": "01180115", "pedido": "0205", "cliente": "CALACIOS BAR", "endereco": "RU1 DUQUE DE CAXIAS, 1819CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.638791, "lon": -48.418627, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.3177}, {"seq": 21, "codigo": "01180163", "pedido": "0192", "cliente": "BAR TUBARAO", "endereco": "RUA MIRACEMA CAIXA 02, 2118CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77780000", "lat": -7.638559, "lon": -48.415976, "dist_anterior_km": 0.3177, "dist_proxima_km": 0.4012}, {"seq": 22, "codigo": "01180145", "pedido": "0196", "cliente": "BEBA MAIS CONVENIE01", "endereco": "RU1 PORTO NACIONAL, 1842CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.640777, "lon": -48.416508, "dist_anterior_km": 0.4012, "dist_proxima_km": 0.040799999999999996}, {"seq": 23, "codigo": "01180174", "pedido": "0206", "cliente": "BAR DO GALEGO     01", "endereco": "RU1 GETULIO VARGAS, 2054SETOR CARDOSONOVA OLINDATO - SETOR CARDOSO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.640697, "lon": -48.416132, "dist_anterior_km": 0.040799999999999996, "dist_proxima_km": 0.1675}, {"seq": 24, "codigo": "01180009", "pedido": "0195", "cliente": "MERCADINHO BUENO", "endereco": "AV GETULIO VARGAS SN S/N -00098CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.641995, "lon": -48.416403, "dist_anterior_km": 0.1675, "dist_proxima_km": 0.0828}, {"seq": 25, "codigo": "01180027", "pedido": "0204", "cliente": "ADEGA DO TETEL", "endereco": "AV GETULIO VARGAS 1 S/N -00116CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.641882, "lon": -48.416801, "dist_anterior_km": 0.0828, "dist_proxima_km": 0.30110000000000003}, {"seq": 26, "codigo": "01180117", "pedido": "0197", "cliente": "ACOUGUE FAMILIA", "endereco": "RU1 PORANGATU, 1598CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.642063, "lon": -48.419534, "dist_anterior_km": 0.30110000000000003, "dist_proxima_km": 0.1625}, {"seq": 27, "codigo": "01180181", "pedido": "0198", "cliente": "BAR DO VEI", "endereco": "RU1 DUQUE DE CAXIAS, 2270CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.642927, "lon": -48.419001, "dist_anterior_km": 0.1625, "dist_proxima_km": 0.5701}, {"seq": 28, "codigo": "01180196", "pedido": "0194", "cliente": "SAIDAS BAR", "endereco": "AV PERIMENTAL DOIS S/NSETOR CARDOSONOVA OLINDATO - SETOR CARDOSO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.643817, "lon": -48.414443, "dist_anterior_km": 0.5701, "dist_proxima_km": 2.925}, {"seq": 29, "codigo": "01180073", "pedido": "0200", "cliente": "ADEGA RE", "endereco": "RU1 ITAGUATINS, 1079CENTRONOVA OLINDATO - CENTRO - NOVA OLINDA/TO - CEP 77790000", "lat": -7.626314, "lon": -48.423439, "dist_anterior_km": 2.925, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.220546, -48.247688], [-7.232203, -48.25296], [-7.24812, -48.255362], [-7.275842, -48.267774], [-7.294808, -48.289984], [-7.333003, -48.312614], [-7.385146, -48.357068], [-7.429232, -48.362852], [-7.484655, -48.379664], [-7.501312, -48.384842], [-7.513594, -48.393812], [-7.513471, -48.393978], [-7.503377, -48.409242], [-7.502852, -48.429912], [-7.510452, -48.432042], [-7.502852, -48.429912], [-7.503377, -48.409242], [-7.514139, -48.393339], [-7.553842, -48.41918], [-7.57691, -48.422341], [-7.59336, -48.419923], [-7.608219, -48.426096], [-7.627668, -48.425491], [-7.62776, -48.42506], [-7.627728, -48.424357], [-7.628817, -48.425111], [-7.628927, -48.425735], [-7.628762, -48.425673], [-7.628921, -48.426215], [-7.628919, -48.4264], [-7.631435, -48.42693], [-7.63153, -48.424459], [-7.631559, -48.423914], [-7.632765, -48.422088], [-7.633751, -48.423887], [-7.633598, -48.426947], [-7.634695, -48.419433], [-7.639938, -48.418736], [-7.640621, -48.418677], [-7.638794, -48.418575], [-7.638556, -48.416106], [-7.63779, -48.418648], [-7.64051, -48.418762], [-7.640659, -48.4165], [-7.640684, -48.416131], [-7.641587, -48.414186], [-7.641996, -48.416377], [-7.642305, -48.416816], [-7.642097, -48.419536], [-7.642933, -48.418926], [-7.643821, -48.41433], [-7.638143, -48.414285], [-7.637548, -48.422531], [-7.626424, -48.423445]];
 const TRACADO_VOLTA = [[-7.626424, -48.423445], [-7.625904, -48.426962], [-7.608757, -48.426128], [-7.59336, -48.419923], [-7.57691, -48.422341], [-7.55446, -48.419351], [-7.500624, -48.384525], [-7.429232, -48.362852], [-7.385637, -48.35729], [-7.333003, -48.312614], [-7.294808, -48.289984], [-7.275842, -48.267774], [-7.24812, -48.255362], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-17';
 const ROTULO_ROTA = "TVA-5A26 - Motorista 729";
 const NUMERO_MOTORISTA = "729";
+const ROTA_ID = "RT001009";
+const VEICULO_ORIGINAL = "TVA-5A26";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "729";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>
