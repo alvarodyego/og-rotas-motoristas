@@ -128,6 +128,7 @@ ul.lista-rotas a small { display: block; font-weight: normal; color: #666; margi
 .painel-linha.status-devolucao .p-status { color: #c00000; }
 .painel-linha.status-fechado .p-status { color: #b8860b; }
 .painel-linha.status-pendente .p-status { color: #bbb; }
+.btn-aviso { padding: 3px 8px; border-radius: 5px; border: 1.5px solid #ff6d00; color: #ff6d00; background: #fff; font-size: 0.66rem; font-weight: bold; cursor: pointer; white-space: nowrap; }
 .painel-atualizado { text-align: center; font-size: 0.7rem; color: #888; padding: 8px; }
 .bloqueio { display: none; position: fixed; inset: 0; background: var(--azul); color: #fff; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
 body.bloqueado .bloqueio { display: flex; }
@@ -711,6 +712,7 @@ function renderizar() {{
       return '<div class="painel-linha status-' + (status || 'pendente') + '">' +
         '<span class="p-seq">' + p.seq + '. ' + p.cliente + (p.mensagem ? ' <span class="tag-mensagem">aviso</span>' : '') + '</span>' +
         '<span class="p-status">' + RESPOSTA_STATUS[status] + '</span>' +
+        '<button class="btn-aviso" data-rota="' + rota.id + '" data-codigo="' + p.codigo + '">' + (p.mensagem ? 'Editar aviso' : 'Lancar aviso') + '</button>' +
         '</div>';
     }}).join('');
     const card = document.createElement('div');
@@ -727,6 +729,31 @@ function renderizar() {{
     painelEl.appendChild(card);
   }});
 }}
+
+// Permite ao supervisor lancar (ou editar) um aviso pra um pedido direto do
+// painel, sem precisar entrar no admin. Escuta cliques no botao "Lancar
+// aviso" via delegacao (o HTML das linhas e' recriado a cada renderizar()),
+// e grava so' o campo "mensagens" desse pedido, com merge:true -- assim nao
+// apaga um ajuste de motorista/veiculo/ordem que o admin/analista ja tenha
+// salvo nessa mesma rota.
+painelEl.addEventListener('click', ev => {{
+  const btn = ev.target.closest('.btn-aviso');
+  if (!btn || !db) return;
+  const rotaId = btn.dataset.rota;
+  const codigo = btn.dataset.codigo;
+  const ajusteAtual = ultimosAjustes[rotaId];
+  const mensagemAtual = (ajusteAtual && ajusteAtual.mensagens && ajusteAtual.mensagens[codigo]) || '';
+  const novaMensagem = window.prompt('Aviso para o motorista sobre esse pedido:', mensagemAtual);
+  if (novaMensagem === null) return;
+  db.collection('{firestore_colecao_ajustes}').doc(DATA_ISO + '_' + rotaId).set({{
+    data: DATA_ISO,
+    rota_id: rotaId,
+    mensagens: {{ [codigo]: novaMensagem.trim() }}
+  }}, {{ merge: true }}).catch(err => {{
+    alert('Erro ao salvar o aviso. Confira sua internet e tente de novo.');
+    console.error(err);
+  }});
+}});
 
 // Ja renderiza a lista completa (todos "pendente") antes mesmo do Firestore
 // responder, pra pagina nao ficar em branco -- e depois atualiza sozinha,
@@ -766,97 +793,13 @@ if (db) {{
 """
 
 
-_ADMIN_TEMPLATE = """<!doctype html>
-<html lang="pt-br">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<meta name="theme-color" content="#1f4e78">
-<title>Administracao de senhas</title>
-<style>{estilo}</style>
-</head>
-<body class="bloqueado">
-<div class="bloqueio"><div class="bloqueio-caixa">
-  <h2>Administracao</h2>
-  <p>Digite a senha administrativa pra continuar.</p>
-  <form id="formSenhaAdmin">
-    <input type="password" id="campoSenhaAdmin" placeholder="Senha administrativa" autocomplete="current-password" required>
-    <button type="submit">Entrar</button>
-  </form>
-  <div class="bloqueio-erro" id="bloqueioErroAdmin"></div>
-</div></div>
-<header>
-  <h1>Administracao de senhas</h1>
-  <div class="marca">{marca}</div>
-</header>
-<main>
-  <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
-  <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
-    Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
-    de hoje sem esperar um novo arquivo do PathFind. O km mostrado ao
-    motorista continua sendo o original; a pagina dele so' avisa que a rota
-    foi ajustada manualmente.
-  </p>
-  <div id="listaAjustes"></div>
-
-  <h2 class="secao-titulo">Senhas dos motoristas</h2>
-  <div class="admin-topo">
-    <button id="btnGerarPadrao">Gerar senha padrao pra todo mundo</button>
-  </div>
-  <div class="admin-msg" id="adminMsg"></div>
-  <div id="listaMotoristas"></div>
-  <div class="admin-linha" style="margin-top:16px;">
-    <span>Admin</span>
-    <input type="text" id="novaSenhaAdmin" placeholder="Nova senha administrativa">
-    <button id="btnSalvarAdmin">Salvar</button>
-  </div>
-</main>
-<footer><a href="index.html">Ver lista de rotas</a></footer>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>
-const NUMERO_MIN = {numero_min};
-const NUMERO_MAX = {numero_max};
-const DATA_ISO = '{data_atual_iso}';
-const ROTAS_HOJE = {rotas_hoje_json};
-const adminMsgEl = document.getElementById('adminMsg');
-
-let db = null;
-try {{
-  firebase.initializeApp({firebase_config_json});
-  db = firebase.firestore();
-}} catch (e) {{
-  console.error(e);
-}}
-
-function senhaPadrao(numero) {{
-  return numero + 'OG' + (numero % 10);
-}}
-
-function mensagem(texto, ehErro) {{
-  adminMsgEl.textContent = texto;
-  adminMsgEl.style.color = ehErro ? '#c00000' : '#1e7e34';
-}}
-
-function montarLinha(numero) {{
-  const linha = document.createElement('div');
-  linha.className = 'admin-linha';
-  linha.innerHTML =
-    '<span>' + numero + '</span>' +
-    '<input type="text" id="senha-' + numero + '" placeholder="(sem senha definida)">' +
-    '<button data-numero="' + numero + '">Salvar</button>';
-  linha.querySelector('button').addEventListener('click', () => {{
-    const valor = document.getElementById('senha-' + numero).value.trim();
-    if (!valor) {{ mensagem('Digite uma senha antes de salvar (motorista ' + numero + ').', true); return; }}
-    db.collection('{firestore_colecao_motoristas}').doc(String(numero)).set({{ senha: valor }})
-      .then(() => mensagem('Senha do motorista ' + numero + ' salva.', false))
-      .catch(err => {{ mensagem('Erro ao salvar a senha do motorista ' + numero + '.', true); console.error(err); }});
-  }});
-  return linha;
-}}
-
-// --- ajuste manual de rotas (motorista, veiculo, ordem, exclusao) ------
+# Bloco de JS reaproveitado tanto em _ADMIN_TEMPLATE quanto em
+# _ANALISTA_TEMPLATE (edicao de motorista/veiculo/ordem/exclusao/mensagem de
+# uma rota do dia). Formatado uma unica vez (ver _JS_AJUSTE_ROTAS_RENDERED,
+# mais abaixo) e embutido como texto pronto nos dois templates, ja que este
+# gerador estatico nao tem um modulo JS compartilhado de verdade.
+_JS_AJUSTE_ROTAS = """
+// --- ajuste manual de rotas (motorista, veiculo, ordem, exclusao, mensagem) ---
 
 function montarCardAjuste(rota) {{
   const card = document.createElement('details');
@@ -1005,6 +948,101 @@ function carregarAjustes() {{
     }}).catch(err => console.error('Falha ao carregar ajuste existente:', err));
   }});
 }}
+"""
+_JS_AJUSTE_ROTAS_RENDERED = _JS_AJUSTE_ROTAS.format(firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES)
+
+
+_ADMIN_TEMPLATE = """<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
+<title>Administracao de senhas</title>
+<style>{estilo}</style>
+</head>
+<body class="bloqueado">
+<div class="bloqueio"><div class="bloqueio-caixa">
+  <h2>Administracao</h2>
+  <p>Digite a senha administrativa pra continuar.</p>
+  <form id="formSenhaAdmin">
+    <input type="password" id="campoSenhaAdmin" placeholder="Senha administrativa" autocomplete="current-password" required>
+    <button type="submit">Entrar</button>
+  </form>
+  <div class="bloqueio-erro" id="bloqueioErroAdmin"></div>
+</div></div>
+<header>
+  <h1>Administracao de senhas</h1>
+  <div class="marca">{marca}</div>
+</header>
+<main>
+  <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
+  <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
+    Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
+    de hoje sem esperar um novo arquivo do PathFind. O km mostrado ao
+    motorista continua sendo o original; a pagina dele so' avisa que a rota
+    foi ajustada manualmente.
+  </p>
+  <div id="listaAjustes"></div>
+
+  <h2 class="secao-titulo">Senhas dos motoristas</h2>
+  <div class="admin-topo">
+    <button id="btnGerarPadrao">Gerar senha padrao pra todo mundo</button>
+  </div>
+  <div class="admin-msg" id="adminMsg"></div>
+  <div id="listaMotoristas"></div>
+  <div class="admin-linha" style="margin-top:16px;">
+    <span>Admin</span>
+    <input type="text" id="novaSenhaAdmin" placeholder="Nova senha administrativa">
+    <button id="btnSalvarAdmin">Salvar</button>
+  </div>
+</main>
+<footer><a href="index.html">Ver lista de rotas</a></footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const NUMERO_MIN = {numero_min};
+const NUMERO_MAX = {numero_max};
+const DATA_ISO = '{data_atual_iso}';
+const ROTAS_HOJE = {rotas_hoje_json};
+const adminMsgEl = document.getElementById('adminMsg');
+
+let db = null;
+try {{
+  firebase.initializeApp({firebase_config_json});
+  db = firebase.firestore();
+}} catch (e) {{
+  console.error(e);
+}}
+
+function senhaPadrao(numero) {{
+  return numero + 'OG' + (numero % 10);
+}}
+
+function mensagem(texto, ehErro) {{
+  adminMsgEl.textContent = texto;
+  adminMsgEl.style.color = ehErro ? '#c00000' : '#1e7e34';
+}}
+
+function montarLinha(numero) {{
+  const linha = document.createElement('div');
+  linha.className = 'admin-linha';
+  linha.innerHTML =
+    '<span>' + numero + '</span>' +
+    '<input type="text" id="senha-' + numero + '" placeholder="(sem senha definida)">' +
+    '<button data-numero="' + numero + '">Salvar</button>';
+  linha.querySelector('button').addEventListener('click', () => {{
+    const valor = document.getElementById('senha-' + numero).value.trim();
+    if (!valor) {{ mensagem('Digite uma senha antes de salvar (motorista ' + numero + ').', true); return; }}
+    db.collection('{firestore_colecao_motoristas}').doc(String(numero)).set({{ senha: valor }})
+      .then(() => mensagem('Senha do motorista ' + numero + ' salva.', false))
+      .catch(err => {{ mensagem('Erro ao salvar a senha do motorista ' + numero + '.', true); console.error(err); }});
+  }});
+  return linha;
+}}
+
+{js_ajuste_rotas}
 
 function carregarMotoristas() {{
   const listaEl = document.getElementById('listaMotoristas');
@@ -1080,16 +1118,97 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
 """
 
 
-def gerar_admin(
-    resultados: dict[str, ResultadoRota],
-    docs_dir: str,
-    data_iso: str,
-) -> None:
-    """Gera docs/admin.html: pagina protegida pela senha administrativa,
-    onde da pra ver/trocar a senha de cada motorista (720 a 731), gerar as
-    senhas padrao de uma vez, e ajustar manualmente (motorista, veiculo,
-    ordem de visita, exclusao de parada) as rotas de hoje."""
-    rotas_hoje_json = [
+_ANALISTA_TEMPLATE = """<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#1f4e78">
+<title>Painel do analista</title>
+<style>{estilo}</style>
+</head>
+<body class="bloqueado">
+<div class="bloqueio"><div class="bloqueio-caixa">
+  <h2>Painel do analista</h2>
+  <p>Digite a senha pra continuar.</p>
+  <form id="formSenhaAnalista">
+    <input type="password" id="campoSenhaAnalista" placeholder="Senha" autocomplete="current-password" required>
+    <button type="submit">Entrar</button>
+  </form>
+  <div class="bloqueio-erro" id="bloqueioErroAnalista"></div>
+</div></div>
+<header>
+  <h1>Painel do analista</h1>
+  <div class="marca">{marca}</div>
+</header>
+<main>
+  <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
+  <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
+    Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
+    de hoje sem esperar um novo arquivo do PathFind. O km mostrado ao
+    motorista continua sendo o original; a pagina dele so' avisa que a rota
+    foi ajustada manualmente.
+  </p>
+  <div id="listaAjustes"></div>
+</main>
+<footer><a href="index.html">Ver lista de rotas</a></footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const NUMERO_MIN = {numero_min};
+const NUMERO_MAX = {numero_max};
+const DATA_ISO = '{data_atual_iso}';
+const ROTAS_HOJE = {rotas_hoje_json};
+
+let db = null;
+try {{
+  firebase.initializeApp({firebase_config_json});
+  db = firebase.firestore();
+}} catch (e) {{
+  console.error(e);
+}}
+
+{js_ajuste_rotas}
+
+if (sessionStorage.getItem('analista_desbloqueado') === 'sim') {{
+  document.body.classList.remove('bloqueado');
+  carregarAjustes();
+}} else {{
+  document.getElementById('formSenhaAnalista').addEventListener('submit', ev => {{
+    ev.preventDefault();
+    const erroEl = document.getElementById('bloqueioErroAnalista');
+    if (!db) {{
+      erroEl.textContent = 'Sem conexao. Confira sua internet e tente de novo.';
+      return;
+    }}
+    const senhaDigitada = document.getElementById('campoSenhaAnalista').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('{firestore_colecao_motoristas}').doc('analista').get().then(doc => {{
+      if (doc.exists && doc.data().senha === senhaDigitada) {{
+        sessionStorage.setItem('analista_desbloqueado', 'sim');
+        document.body.classList.remove('bloqueado');
+        carregarAjustes();
+      }} else {{
+        erroEl.textContent = 'Senha incorreta.';
+      }}
+    }}).catch(err => {{
+      erroEl.textContent = 'Erro ao verificar a senha.';
+      console.error(err);
+    }});
+  }});
+}}
+</script>
+</body>
+</html>
+"""
+
+
+def _rotas_hoje_json(resultados: dict[str, ResultadoRota]) -> list[dict]:
+    """Estrutura das rotas do dia usada pelas telas de ajuste (admin e
+    analista): id estavel da rota, rotulo, veiculo/motorista originais e a
+    lista de paradas (seq/codigo/cliente) pra montar o formulario."""
+    return [
         {
             "id": resultado.rota,
             "rotulo": rotulo_rota(resultado),
@@ -1102,19 +1221,54 @@ def gerar_admin(
         }
         for _, resultado in sorted(resultados.items())
     ]
+
+
+def gerar_admin(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    data_iso: str,
+) -> None:
+    """Gera docs/admin.html: pagina protegida pela senha administrativa,
+    onde da pra ver/trocar a senha de cada motorista (720 a 731), gerar as
+    senhas padrao de uma vez, e ajustar manualmente (motorista, veiculo,
+    ordem de visita, exclusao de parada, mensagem) as rotas de hoje."""
     html_admin = _ADMIN_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
         numero_min=NUMERO_MOTORISTA_MIN,
         numero_max=NUMERO_MOTORISTA_MAX,
         data_atual_iso=data_iso,
-        rotas_hoje_json=json.dumps(rotas_hoje_json, ensure_ascii=False),
+        rotas_hoje_json=json.dumps(_rotas_hoje_json(resultados), ensure_ascii=False),
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
-        firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES,
+        js_ajuste_rotas=_JS_AJUSTE_ROTAS_RENDERED,
     )
     with open(os.path.join(docs_dir, "admin.html"), "w", encoding="utf-8") as f:
         f.write(html_admin)
+
+
+def gerar_analista(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    data_iso: str,
+) -> None:
+    """Gera docs/analista.html: mesma tela de ajuste de rotas do admin.html
+    (motorista, veiculo, ordem, exclusao, mensagem), protegida por uma senha
+    separada (colecao de motoristas, documento "analista"), sem acesso a
+    gestao de senhas."""
+    html_analista = _ANALISTA_TEMPLATE.format(
+        estilo=_ESTILO,
+        marca=MARCA,
+        numero_min=NUMERO_MOTORISTA_MIN,
+        numero_max=NUMERO_MOTORISTA_MAX,
+        data_atual_iso=data_iso,
+        rotas_hoje_json=json.dumps(_rotas_hoje_json(resultados), ensure_ascii=False),
+        firebase_config_json=json.dumps(FIREBASE_CONFIG),
+        firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+        js_ajuste_rotas=_JS_AJUSTE_ROTAS_RENDERED,
+    )
+    with open(os.path.join(docs_dir, "analista.html"), "w", encoding="utf-8") as f:
+        f.write(html_analista)
 
 
 def gerar_painel(
@@ -1426,6 +1580,9 @@ def gerar_site(
 
         gerar_admin(resultados, docs_dir, data_iso)
         arquivos_gerados.append("admin.html")
+
+        gerar_analista(resultados, docs_dir, data_iso)
+        arquivos_gerados.append("analista.html")
 
     # Copia arquivada do dia, para o filtro de data poder consultar depois.
     arquivos_dia = _gerar_paginas(
