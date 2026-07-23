@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,15 +89,35 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
+<div class="bloqueio"><div class="bloqueio-caixa"><h2>Rota protegida</h2><p>Digite a senha do motorista pra ver essa rota.</p><form id="formSenha"><input type="password" id="campoSenha" placeholder="Senha" autocomplete="current-password" required><button type="submit">Entrar</button></form><div class="bloqueio-erro" id="bloqueioErro"></div></div></div>
 <header>
   <h1>OLL-3030 - Sem motorista definido</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:09</div>
+  <div class="sub">Atualizado em 22/07/2026 22:23</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -113,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01002895", "cliente": "CASERATTO", "endereco": "AL ARAGUAIA01, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215755, "lon": -48.219056, "dist_anterior_km": 6.5582, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01002895", "pedido": "67", "cliente": "CASERATTO", "endereco": "AL ARAGUAIA01, 142LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.215755, "lon": -48.219056, "dist_anterior_km": 6.5582, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.221045, -48.247636], [-7.219996, -48.247447], [-7.214238, -48.244759], [-7.208713, -48.24213], [-7.208031, -48.241507], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208322, -48.236399], [-7.208208, -48.234595], [-7.208017, -48.23381], [-7.203712, -48.223746], [-7.203122, -48.221047], [-7.203237, -48.220862], [-7.20462, -48.220437], [-7.206323, -48.22098], [-7.207198, -48.220933], [-7.20779, -48.220716], [-7.2081, -48.220351], [-7.208235, -48.21947], [-7.208586, -48.218879], [-7.210222, -48.217039], [-7.210856, -48.216687], [-7.212184, -48.216791], [-7.213627, -48.216616], [-7.215419, -48.218312], [-7.215866, -48.218548]];
 const TRACADO_VOLTA = [[-7.215866, -48.218548], [-7.22074, -48.218613], [-7.220818, -48.228165], [-7.220212, -48.229531], [-7.220184, -48.230136], [-7.223462, -48.241241], [-7.223299, -48.24221], [-7.220508, -48.24796], [-7.229005, -48.251802], [-7.232203, -48.25296], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.229102, -48.251436], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-21';
 const ROTULO_ROTA = "OLL-3030 - Sem motorista definido";
 const NUMERO_MOTORISTA = null;
+const ROTA_ID = "RT001003";
+const VEICULO_ORIGINAL = "OLL-3030";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -128,6 +151,31 @@ const NUMERO_MOTORISTA = null;
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -211,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -222,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -295,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>
