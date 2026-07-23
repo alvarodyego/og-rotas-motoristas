@@ -46,6 +46,7 @@ FIREBASE_CONFIG = {
 }
 FIRESTORE_COLECAO_STATUS = "status_entregas"
 FIRESTORE_COLECAO_MOTORISTAS = "motoristas"
+FIRESTORE_COLECAO_AJUSTES = "ajustes_rotas"
 
 # Faixa de numeros de motorista da empresa (720 a 731). Usado pra pre-gerar
 # senhas padrao na pagina de administracao. NAO e' derivado dos dados do
@@ -77,6 +78,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -141,6 +143,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 """
 
 _ROTA_TEMPLATE = """<!doctype html>
@@ -161,7 +182,7 @@ _ROTA_TEMPLATE = """<!doctype html>
   <div class="marca">{marca}</div>
   <div class="sub">Atualizado em {gerado_em}</div>
 </header>
-{aviso_linha_reta}<div id="mapa"></div>
+{aviso_linha_reta}<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -185,6 +206,8 @@ const TRACADO_VOLTA = {tracado_volta_json};
 const DATA_ISO = '{data_atual_iso}';
 const ROTULO_ROTA = {rotulo_json};
 const NUMERO_MOTORISTA = {numero_motorista_json};
+const ROTA_ID = {rota_id_json};
+const VEICULO_ORIGINAL = {veiculo_json};
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -193,6 +216,31 @@ const NUMERO_MOTORISTA = {numero_motorista_json};
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = {{ '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' }};
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {{
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {{
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }}
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {{
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {{
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    }});
+  }}
+  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1 }}));
+}}
 
 let db = null;
 try {{
@@ -276,7 +324,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], {{ icon: iconeOrigem }})
 
 const referencias = {{}};  // codigo -> {{ li, marker }}, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {{
+paradasEfetivas.forEach(p => {{
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -287,7 +335,7 @@ PARADAS.forEach(p => {{
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -360,38 +408,70 @@ if (pontos.length) {{
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "{firestore_colecao_motoristas}"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {{
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-}} else {{
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {{
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {{
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {{
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }}
+  }}
+
+  if (!numeroEfetivo) {{
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }}
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {{
     iniciarPagina();
-  }} else {{
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {{
-      ev.preventDefault();
-      if (!db) {{
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }}
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('{firestore_colecao_motoristas}').doc(NUMERO_MOTORISTA).get().then(doc => {{
-        if (doc.exists && doc.data().senha === senhaDigitada) {{
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        }} else {{
-          erroEl.textContent = 'Senha incorreta.';
-        }}
-      }}).catch(err => {{
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      }});
-    }});
+    return;
   }}
+  const form = document.getElementById('formSenha');
+  if (!form) {{ iniciarPagina(); return; }}
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {{
+    ev.preventDefault();
+    if (!db) {{
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }}
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('{firestore_colecao_motoristas}').doc(numeroEfetivo).get().then(doc => {{
+      if (doc.exists && doc.data().senha === senhaDigitada) {{
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      }} else {{
+        erroEl.textContent = 'Senha incorreta.';
+      }}
+    }}).catch(err => {{
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    }});
+  }});
+}}
+
+if (db && ROTA_ID) {{
+  db.collection('{firestore_colecao_ajustes}').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => {{ console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); }});
+}} else {{
+  iniciarComAjuste(null);
 }}
 </script>
 </body>
@@ -575,12 +655,48 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
 
 const RESPOSTA_STATUS = {{ entregue: 'Entregue', devolucao: 'Devolucao', fechado: 'Voltar depois/Fechado', '': 'Pendente' }};
 
-function renderizar(statusPorCodigo) {{
+// Mesma logica de _ROTA_TEMPLATE: aplica um ajuste manual (feito pelo
+// administrador) por cima das paradas de uma rota -- oculta removidas,
+// reordena e renumera. Duplicada aqui porque este gerador estatico nao tem
+// um modulo JS compartilhado entre paginas.
+function aplicarAjustePartadas(paradas, ajuste) {{
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {{
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }}
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {{
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {{
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    }});
+  }}
+  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1 }}));
+}}
+
+function rotuloComAjuste(rota, ajuste) {{
+  if (!ajuste) return rota.rotulo;
+  const numero = ajuste.motorista_numero || rota.motorista_numero;
+  const placa = ajuste.veiculo || rota.veiculo;
+  return numero
+    ? (placa || 'Veiculo') + ' - Motorista ' + numero
+    : (placa || 'Veiculo') + ' - Sem motorista definido';
+}}
+
+let ultimoStatus = {{}};
+let ultimosAjustes = {{}};
+
+function renderizar() {{
   painelEl.innerHTML = '';
   ROTAS.forEach(rota => {{
+    const ajuste = ultimosAjustes[rota.id] || null;
+    const paradasEfetivas = aplicarAjustePartadas(rota.paradas, ajuste);
     const contagem = {{ entregue: 0, devolucao: 0, fechado: 0, pendente: 0 }};
-    const linhas = rota.paradas.map(p => {{
-      const status = statusPorCodigo[p.codigo] || '';
+    const linhas = paradasEfetivas.map(p => {{
+      const status = ultimoStatus[p.codigo] || '';
       contagem[status || 'pendente']++;
       return '<div class="painel-linha status-' + (status || 'pendente') + '">' +
         '<span class="p-seq">' + p.seq + '. ' + p.cliente + '</span>' +
@@ -590,7 +706,7 @@ function renderizar(statusPorCodigo) {{
     const card = document.createElement('div');
     card.className = 'painel-rota';
     card.innerHTML =
-      '<h2>' + rota.rotulo + '</h2>' +
+      '<h2>' + rotuloComAjuste(rota, ajuste) + (ajuste ? ' <span class="tag-ajustada">ajustada</span>' : '') + '</h2>' +
       '<div class="painel-contagem">' +
         '<span class="c-entregue">Entregues: ' + contagem.entregue + '</span>' +
         '<span class="c-devolucao">Devolucoes: ' + contagem.devolucao + '</span>' +
@@ -604,24 +720,35 @@ function renderizar(statusPorCodigo) {{
 
 // Ja renderiza a lista completa (todos "pendente") antes mesmo do Firestore
 // responder, pra pagina nao ficar em branco -- e depois atualiza sozinha,
-// em tempo real, toda vez que algum motorista marcar algo (onSnapshot).
-renderizar({{}});
+// em tempo real, toda vez que algum motorista marcar algo ou o
+// administrador salvar um ajuste manual (onSnapshot nas duas colecoes).
+renderizar();
 
 if (db) {{
   db.collection('{firestore_colecao}').where('data', '==', DATA_ISO)
     .onSnapshot(snapshot => {{
-      const statusPorCodigo = {{}};
+      ultimoStatus = {{}};
       snapshot.forEach(doc => {{
         const d = doc.data();
-        statusPorCodigo[d.codigo] = d.status;
+        ultimoStatus[d.codigo] = d.status;
       }});
-      renderizar(statusPorCodigo);
+      renderizar();
       const agora = new Date().toLocaleTimeString('pt-BR', {{ hour: '2-digit', minute: '2-digit', second: '2-digit' }});
       statusConexaoEl.textContent = 'Atualizado automaticamente às ' + agora;
     }}, err => {{
       statusConexaoEl.textContent = 'Erro ao conectar ao painel em tempo real.';
       console.error(err);
     }});
+
+  db.collection('{firestore_colecao_ajustes}').where('data', '==', DATA_ISO)
+    .onSnapshot(snapshot => {{
+      ultimosAjustes = {{}};
+      snapshot.forEach(doc => {{
+        const d = doc.data();
+        ultimosAjustes[d.rota_id] = d;
+      }});
+      renderizar();
+    }}, err => console.error('Falha ao acompanhar ajustes manuais:', err));
 }}
 </script>
 </body>
@@ -653,6 +780,16 @@ _ADMIN_TEMPLATE = """<!doctype html>
   <div class="marca">{marca}</div>
 </header>
 <main>
+  <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
+  <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
+    Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
+    de hoje sem esperar um novo arquivo do PathFind. O km mostrado ao
+    motorista continua sendo o original; a pagina dele so' avisa que a rota
+    foi ajustada manualmente.
+  </p>
+  <div id="listaAjustes"></div>
+
+  <h2 class="secao-titulo">Senhas dos motoristas</h2>
   <div class="admin-topo">
     <button id="btnGerarPadrao">Gerar senha padrao pra todo mundo</button>
   </div>
@@ -671,6 +808,8 @@ _ADMIN_TEMPLATE = """<!doctype html>
 <script>
 const NUMERO_MIN = {numero_min};
 const NUMERO_MAX = {numero_max};
+const DATA_ISO = '{data_atual_iso}';
+const ROTAS_HOJE = {rotas_hoje_json};
 const adminMsgEl = document.getElementById('adminMsg');
 
 let db = null;
@@ -705,6 +844,146 @@ function montarLinha(numero) {{
       .catch(err => {{ mensagem('Erro ao salvar a senha do motorista ' + numero + '.', true); console.error(err); }});
   }});
   return linha;
+}}
+
+// --- ajuste manual de rotas (motorista, veiculo, ordem, exclusao) ------
+
+function montarCardAjuste(rota) {{
+  const card = document.createElement('details');
+  card.className = 'ajuste-rota';
+  card.innerHTML =
+    '<summary>' + rota.rotulo + ' <small>(' + rota.paradas.length + ' paradas)</small></summary>' +
+    '<div class="ajuste-campos">' +
+      '<div class="ajuste-campo">' +
+        '<label for="ajusteMotorista-' + rota.id + '">Motorista</label>' +
+        '<select id="ajusteMotorista-' + rota.id + '"></select>' +
+      '</div>' +
+      '<div class="ajuste-campo">' +
+        '<label for="ajusteVeiculo-' + rota.id + '">Veiculo (placa)</label>' +
+        '<input type="text" id="ajusteVeiculo-' + rota.id + '" placeholder="' + (rota.veiculo || 'sem veiculo') + '">' +
+      '</div>' +
+    '</div>' +
+    '<div class="ajuste-paradas" id="ajusteParadas-' + rota.id + '"></div>' +
+    '<div class="ajuste-botoes">' +
+      '<button class="btn-salvar">Salvar ajustes</button>' +
+      '<button class="btn-limpar">Limpar ajustes (voltar ao original)</button>' +
+    '</div>' +
+    '<div class="ajuste-status" id="ajusteStatus-' + rota.id + '"></div>';
+
+  const selMotorista = card.querySelector('#ajusteMotorista-' + rota.id);
+  const optManter = document.createElement('option');
+  optManter.value = '';
+  optManter.textContent = 'Manter original (' + (rota.motorista_numero || 'sem motorista') + ')';
+  selMotorista.appendChild(optManter);
+  for (let n = NUMERO_MIN; n <= NUMERO_MAX; n++) {{
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = String(n);
+    selMotorista.appendChild(opt);
+  }}
+
+  const paradasEl = card.querySelector('#ajusteParadas-' + rota.id);
+  rota.paradas.forEach(p => {{
+    const linha = document.createElement('div');
+    linha.className = 'ajuste-parada';
+    linha.dataset.codigo = p.codigo;
+    linha.innerHTML =
+      '<input type="number" class="ap-pos" value="' + p.seq + '">' +
+      '<span class="ap-nome">' + p.seq + '. ' + p.cliente + ' <small>(' + p.codigo + ')</small></span>' +
+      '<label><input type="checkbox" class="ap-excluir"> excluir</label>';
+    linha.querySelector('.ap-excluir').addEventListener('change', ev => {{
+      linha.classList.toggle('ap-excluida', ev.target.checked);
+    }});
+    paradasEl.appendChild(linha);
+  }});
+
+  card.querySelector('.btn-salvar').addEventListener('click', () => salvarAjuste(rota));
+  card.querySelector('.btn-limpar').addEventListener('click', () => limparAjuste(rota));
+
+  return card;
+}}
+
+function salvarAjuste(rota) {{
+  const statusEl = document.getElementById('ajusteStatus-' + rota.id);
+  const motoristaEl = document.getElementById('ajusteMotorista-' + rota.id);
+  const veiculoEl = document.getElementById('ajusteVeiculo-' + rota.id);
+  const linhas = Array.from(document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada'));
+
+  const removidos = [];
+  const comPosicao = [];
+  linhas.forEach((linha, i) => {{
+    const codigo = linha.dataset.codigo;
+    if (linha.querySelector('.ap-excluir').checked) {{ removidos.push(codigo); return; }}
+    const pos = parseFloat(linha.querySelector('.ap-pos').value);
+    comPosicao.push({{ codigo: codigo, pos: isNaN(pos) ? i : pos, i: i }});
+  }});
+  comPosicao.sort((a, b) => (a.pos - b.pos) || (a.i - b.i));
+  const ordem = comPosicao.map(x => x.codigo);
+
+  const doc = {{
+    data: DATA_ISO,
+    rota_id: rota.id,
+    motorista_numero: motoristaEl.value || null,
+    veiculo: veiculoEl.value.trim() || null,
+    removidos: removidos,
+    ordem: ordem,
+    atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
+  }};
+  statusEl.textContent = 'Salvando...';
+  statusEl.style.color = '';
+  db.collection('{firestore_colecao_ajustes}').doc(DATA_ISO + '_' + rota.id).set(doc)
+    .then(() => {{ statusEl.textContent = 'Ajustes salvos.'; statusEl.style.color = '#1e7e34'; }})
+    .catch(err => {{ statusEl.textContent = 'Erro ao salvar os ajustes.'; statusEl.style.color = '#c00000'; console.error(err); }});
+}}
+
+function limparAjuste(rota) {{
+  const statusEl = document.getElementById('ajusteStatus-' + rota.id);
+  db.collection('{firestore_colecao_ajustes}').doc(DATA_ISO + '_' + rota.id).delete()
+    .then(() => {{
+      statusEl.textContent = 'Ajustes removidos, rota voltou ao original do PathFind.';
+      statusEl.style.color = '#1e7e34';
+      document.getElementById('ajusteMotorista-' + rota.id).value = '';
+      document.getElementById('ajusteVeiculo-' + rota.id).value = '';
+      document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada').forEach((linha, i) => {{
+        linha.querySelector('.ap-excluir').checked = false;
+        linha.classList.remove('ap-excluida');
+        linha.querySelector('.ap-pos').value = i + 1;
+      }});
+    }})
+    .catch(err => {{ statusEl.textContent = 'Erro ao limpar os ajustes.'; statusEl.style.color = '#c00000'; console.error(err); }});
+}}
+
+function carregarAjustes() {{
+  const listaEl = document.getElementById('listaAjustes');
+  listaEl.innerHTML = '';
+  if (!ROTAS_HOJE.length) {{
+    listaEl.innerHTML = '<p style="text-align:center; font-size:0.8rem; color:#888;">Nenhuma rota gerada ainda hoje.</p>';
+    return;
+  }}
+  ROTAS_HOJE.forEach(rota => {{
+    const card = montarCardAjuste(rota);
+    listaEl.appendChild(card);
+    db.collection('{firestore_colecao_ajustes}').doc(DATA_ISO + '_' + rota.id).get().then(doc => {{
+      if (!doc.exists) return;
+      const d = doc.data();
+      if (d.motorista_numero) document.getElementById('ajusteMotorista-' + rota.id).value = d.motorista_numero;
+      if (d.veiculo) document.getElementById('ajusteVeiculo-' + rota.id).value = d.veiculo;
+      const removidos = new Set(d.removidos || []);
+      const posicao = new Map((d.ordem || []).map((c, i) => [c, i]));
+      document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada').forEach(linha => {{
+        const codigo = linha.dataset.codigo;
+        if (removidos.has(codigo)) {{
+          linha.querySelector('.ap-excluir').checked = true;
+          linha.classList.add('ap-excluida');
+        }}
+        if (posicao.has(codigo)) {{
+          linha.querySelector('.ap-pos').value = posicao.get(codigo) + 1;
+        }}
+      }});
+      card.open = true;
+      card.querySelector('summary').insertAdjacentHTML('beforeend', ' <span class="tag-ajustada">ajustada</span>');
+    }}).catch(err => console.error('Falha ao carregar ajuste existente:', err));
+  }});
 }}
 
 function carregarMotoristas() {{
@@ -749,6 +1028,7 @@ document.getElementById('btnSalvarAdmin').addEventListener('click', () => {{
 if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
   document.body.classList.remove('bloqueado');
   carregarMotoristas();
+  carregarAjustes();
 }} else {{
   document.getElementById('formSenhaAdmin').addEventListener('submit', ev => {{
     ev.preventDefault();
@@ -764,6 +1044,7 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
         sessionStorage.setItem('painel_desbloqueado', 'sim');
         document.body.classList.remove('bloqueado');
         carregarMotoristas();
+        carregarAjustes();
       }} else {{
         erroEl.textContent = 'Senha incorreta.';
       }}
@@ -779,17 +1060,38 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {{
 """
 
 
-def gerar_admin(docs_dir: str) -> None:
+def gerar_admin(
+    resultados: dict[str, ResultadoRota],
+    docs_dir: str,
+    data_iso: str,
+) -> None:
     """Gera docs/admin.html: pagina protegida pela senha administrativa,
-    onde da pra ver/trocar a senha de cada motorista (720 a 731) e gerar as
-    senhas padrao de uma vez."""
+    onde da pra ver/trocar a senha de cada motorista (720 a 731), gerar as
+    senhas padrao de uma vez, e ajustar manualmente (motorista, veiculo,
+    ordem de visita, exclusao de parada) as rotas de hoje."""
+    rotas_hoje_json = [
+        {
+            "id": resultado.rota,
+            "rotulo": rotulo_rota(resultado),
+            "veiculo": veiculo_atual(resultado),
+            "motorista_numero": numero_motorista(resultado),
+            "paradas": [
+                {"seq": p.sequencia, "codigo": p.entrega.codigo_cliente, "cliente": p.entrega.cliente}
+                for p in resultado.ordem_otimizada
+            ],
+        }
+        for _, resultado in sorted(resultados.items())
+    ]
     html_admin = _ADMIN_TEMPLATE.format(
         estilo=_ESTILO,
         marca=MARCA,
         numero_min=NUMERO_MOTORISTA_MIN,
         numero_max=NUMERO_MOTORISTA_MAX,
+        data_atual_iso=data_iso,
+        rotas_hoje_json=json.dumps(rotas_hoje_json, ensure_ascii=False),
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+        firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES,
     )
     with open(os.path.join(docs_dir, "admin.html"), "w", encoding="utf-8") as f:
         f.write(html_admin)
@@ -807,7 +1109,10 @@ def gerar_painel(
     (Firestore onSnapshot) conforme os motoristas forem marcando."""
     rotas_json = [
         {
+            "id": resultado.rota,
             "rotulo": rotulo_rota(resultado),
+            "veiculo": veiculo_atual(resultado),
+            "motorista_numero": numero_motorista(resultado),
             "paradas": [
                 {"seq": p.sequencia, "codigo": p.entrega.codigo_cliente, "cliente": p.entrega.cliente}
                 for p in resultado.ordem_otimizada
@@ -824,6 +1129,7 @@ def gerar_painel(
         firebase_config_json=json.dumps(FIREBASE_CONFIG),
         firestore_colecao=FIRESTORE_COLECAO_STATUS,
         firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+        firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES,
     )
     with open(os.path.join(docs_dir, "painel.html"), "w", encoding="utf-8") as f:
         f.write(html_painel)
@@ -857,6 +1163,14 @@ def numero_motorista(resultado: ResultadoRota) -> str | None:
     return codigo_m.group(1) if codigo_m else None
 
 
+def veiculo_atual(resultado: ResultadoRota) -> str | None:
+    """Placa do veiculo original dessa rota (segundo o PathFind), usada como
+    base pro ajuste manual poder mostrar/trocar a partir do valor atual."""
+    if not resultado.ordem_otimizada:
+        return None
+    return resultado.ordem_otimizada[0].entrega.veiculo or None
+
+
 def _slug(texto: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9]+", "-", texto).strip("-")
     return slug or "rota"
@@ -867,6 +1181,7 @@ def _resultado_para_paradas(resultado: ResultadoRota) -> list[dict]:
         {
             "seq": p.sequencia,
             "codigo": p.entrega.codigo_cliente,
+            "pedido": p.entrega.pedido_num,
             "cliente": p.entrega.cliente,
             "endereco": p.entrega.endereco,
             "lat": p.entrega.latitude,
@@ -927,6 +1242,11 @@ def _gerar_paginas(
         ) if not resultado.usou_distancia_real else ""
 
         numero_mot = numero_motorista(resultado)
+        veiculo_orig = veiculo_atual(resultado)
+        # Sempre gera o bloco de senha, mesmo se a rota nao tiver motorista
+        # definido no PathFind: um ajuste manual no admin pode atribuir um
+        # motorista depois, e a decisao de mostrar ou nao o bloqueio passa a
+        # ser feita no navegador (ver iniciarComAjuste no template).
         bloqueio_html = (
             '<div class="bloqueio"><div class="bloqueio-caixa">'
             '<h2>Rota protegida</h2>'
@@ -937,7 +1257,7 @@ def _gerar_paginas(
             '</form>'
             '<div class="bloqueio-erro" id="bloqueioErro"></div>'
             '</div></div>\n'
-        ) if numero_mot else ""
+        )
 
         html_rota = _ROTA_TEMPLATE.format(
             rotulo=rotulo,
@@ -960,7 +1280,10 @@ def _gerar_paginas(
             firebase_config_json=json.dumps(FIREBASE_CONFIG),
             firestore_colecao=FIRESTORE_COLECAO_STATUS,
             firestore_colecao_motoristas=FIRESTORE_COLECAO_MOTORISTAS,
+            firestore_colecao_ajustes=FIRESTORE_COLECAO_AJUSTES,
             numero_motorista_json=json.dumps(numero_mot),
+            rota_id_json=json.dumps(resultado.rota, ensure_ascii=False),
+            veiculo_json=json.dumps(veiculo_orig, ensure_ascii=False),
             bloqueio_html=bloqueio_html,
         )
         caminho_rota = os.path.join(rotas_dir, f"{slug}.html")
@@ -1081,7 +1404,7 @@ def gerar_site(
         gerar_painel(resultados, docs_dir, data_iso, data_br, gerado_em)
         arquivos_gerados.append("painel.html")
 
-        gerar_admin(docs_dir)
+        gerar_admin(resultados, docs_dir, data_iso)
         arquivos_gerados.append("admin.html")
 
     # Copia arquivada do dia, para o filtro de data poder consultar depois.
