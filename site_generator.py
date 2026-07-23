@@ -98,6 +98,8 @@ ol.paradas { list-style: none; margin: 0; padding: 8px; }
 .parada.status-entregue { border-left: 4px solid #1e7e34; }
 .parada.status-devolucao { border-left: 4px solid #c00000; }
 .parada.status-fechado { border-left: 4px solid #b8860b; }
+.parada.tem-mensagem { border: 2px solid #ff6d00; background: #fff8f0; }
+.mensagem-admin { background: #ff6d00; color: #fff; border-radius: 6px; padding: 8px 10px; font-size: 0.78rem; font-weight: bold; margin-top: 6px; }
 .status-botoes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .status-btn { flex: 1; min-width: 84px; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; background: #fff; cursor: pointer; text-align: center; }
 .status-btn.entregue { border: 1.5px solid #1e7e34; color: #1e7e34; }
@@ -153,8 +155,10 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
 .ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
 .ajuste-parada:last-child { border-bottom: none; }
-.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada { flex-wrap: wrap; }
+.ajuste-parada .ap-nome { flex: 1; min-width: 140px; }
 .ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada .ap-mensagem { flex: 1 1 100%; padding: 6px 8px; border-radius: 5px; border: 1px solid var(--borda); font-size: 0.78rem; margin-top: 4px; }
 .ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
 .ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
 .ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
@@ -162,6 +166,7 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
 .ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
 .tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+.tag-mensagem { display: inline-block; background: #ff6d00; color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 """
 
 _ROTA_TEMPLATE = """<!doctype html>
@@ -239,7 +244,8 @@ function aplicarAjustePartadas(paradas, ajuste) {{
       return a.seq - b.seq;
     }});
   }}
-  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1 }}));
+  const mensagens = (ajuste && ajuste.mensagens) || {{}};
+  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1, mensagem: mensagens[p.codigo] || null }}));
 }}
 
 let db = null;
@@ -285,7 +291,7 @@ function iconeNumerado(numero, cor) {{
   }});
 }}
 
-function aplicarStatus(li, status, marker, numero) {{
+function aplicarStatus(li, status, marker, numero, temMensagem) {{
   li.classList.remove('status-entregue', 'status-devolucao', 'status-fechado');
   li.querySelectorAll('.status-btn').forEach(b => b.classList.remove('ativo'));
   if (status) {{
@@ -294,7 +300,8 @@ function aplicarStatus(li, status, marker, numero) {{
     if (btn) btn.classList.add('ativo');
   }}
   if (marker) {{
-    marker.setIcon(iconeNumerado(numero, CORES_STATUS[status] || CORES_STATUS['']));
+    const cor = status ? CORES_STATUS[status] : (temMensagem ? '#ff6d00' : CORES_STATUS['']);
+    marker.setIcon(iconeNumerado(numero, cor));
   }}
 }}
 
@@ -326,18 +333,20 @@ const referencias = {{}};  // codigo -> {{ li, marker }}, usado pra aplicar o st
 
 paradasEfetivas.forEach(p => {{
   const li = document.createElement('li');
-  li.className = 'parada';
+  li.className = 'parada' + (p.mensagem ? ' tem-mensagem' : '');
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
   const chegadaTxt = 'de ' + origemTxt + ': ' + p.dist_anterior_km.toFixed(2) + ' km';
   const proximaTxt = (p.dist_proxima_km === null) ? 'ultima parada'
     : ('proxima: ' + p.dist_proxima_km.toFixed(2) + ' km');
   const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + p.lat + ',' + p.lon;
+  const mensagemHtml = p.mensagem ? '<div class="mensagem-admin">Aviso: ' + p.mensagem + '</div>' : '';
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
       '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
+      mensagemHtml +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
       '<div class="status-botoes">' +
         '<div class="status-btn entregue" data-status="entregue">Entregue</div>' +
@@ -352,8 +361,8 @@ paradasEfetivas.forEach(p => {{
   const marker = L.marker([p.lat, p.lon], {{ icon: iconeNumerado(p.seq, CORES_STATUS[statusInicial]) }})
     .bindPopup('<b>' + p.seq + '. ' + p.codigo + ' - ' + p.cliente + '</b><br>' + p.endereco)
     .addTo(mapa);
-  aplicarStatus(li, statusInicial, marker, p.seq);
-  referencias[p.codigo] = {{ li, marker }};
+  aplicarStatus(li, statusInicial, marker, p.seq, !!p.mensagem);
+  referencias[p.codigo] = {{ li, marker, mensagem: !!p.mensagem }};
   li.querySelectorAll('.status-btn').forEach(btn => {{
     btn.addEventListener('click', () => {{
       const status = btn.dataset.status;
@@ -363,7 +372,7 @@ paradasEfetivas.forEach(p => {{
       }} else {{
         localStorage.removeItem(chaveStatus(p.codigo));
       }}
-      aplicarStatus(li, novo, marker, p.seq);
+      aplicarStatus(li, novo, marker, p.seq, !!p.mensagem);
       salvarStatusRemoto(p, novo);
     }});
   }});
@@ -380,7 +389,7 @@ if (db) {{
       if (ref && dados.status && dados.status !== lerStatus(dados.codigo)) {{
         localStorage.setItem(chaveStatus(dados.codigo), dados.status);
         const seqNum = parseInt(ref.li.querySelector('.num').textContent, 10);
-        aplicarStatus(ref.li, dados.status, ref.marker, seqNum);
+        aplicarStatus(ref.li, dados.status, ref.marker, seqNum, ref.mensagem);
       }}
     }});
   }}).catch(err => console.error('Falha ao buscar status remoto:', err));
@@ -674,7 +683,8 @@ function aplicarAjustePartadas(paradas, ajuste) {{
       return a.seq - b.seq;
     }});
   }}
-  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1 }}));
+  const mensagens = (ajuste && ajuste.mensagens) || {{}};
+  return lista.map((p, i) => Object.assign({{}}, p, {{ seq: i + 1, mensagem: mensagens[p.codigo] || null }}));
 }}
 
 function rotuloComAjuste(rota, ajuste) {{
@@ -699,7 +709,7 @@ function renderizar() {{
       const status = ultimoStatus[p.codigo] || '';
       contagem[status || 'pendente']++;
       return '<div class="painel-linha status-' + (status || 'pendente') + '">' +
-        '<span class="p-seq">' + p.seq + '. ' + p.cliente + '</span>' +
+        '<span class="p-seq">' + p.seq + '. ' + p.cliente + (p.mensagem ? ' <span class="tag-mensagem">aviso</span>' : '') + '</span>' +
         '<span class="p-status">' + RESPOSTA_STATUS[status] + '</span>' +
         '</div>';
     }}).join('');
@@ -890,7 +900,8 @@ function montarCardAjuste(rota) {{
     linha.innerHTML =
       '<input type="number" class="ap-pos" value="' + p.seq + '">' +
       '<span class="ap-nome">' + p.seq + '. ' + p.cliente + ' <small>(' + p.codigo + ')</small></span>' +
-      '<label><input type="checkbox" class="ap-excluir"> excluir</label>';
+      '<label><input type="checkbox" class="ap-excluir"> excluir</label>' +
+      '<input type="text" class="ap-mensagem" placeholder="Mensagem pro motorista sobre esse pedido (opcional)">';
     linha.querySelector('.ap-excluir').addEventListener('change', ev => {{
       linha.classList.toggle('ap-excluida', ev.target.checked);
     }});
@@ -911,8 +922,11 @@ function salvarAjuste(rota) {{
 
   const removidos = [];
   const comPosicao = [];
+  const mensagens = {{}};
   linhas.forEach((linha, i) => {{
     const codigo = linha.dataset.codigo;
+    const mensagem = linha.querySelector('.ap-mensagem').value.trim();
+    if (mensagem) mensagens[codigo] = mensagem;
     if (linha.querySelector('.ap-excluir').checked) {{ removidos.push(codigo); return; }}
     const pos = parseFloat(linha.querySelector('.ap-pos').value);
     comPosicao.push({{ codigo: codigo, pos: isNaN(pos) ? i : pos, i: i }});
@@ -927,6 +941,7 @@ function salvarAjuste(rota) {{
     veiculo: veiculoEl.value.trim() || null,
     removidos: removidos,
     ordem: ordem,
+    mensagens: mensagens,
     atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
   }};
   statusEl.textContent = 'Salvando...';
@@ -948,6 +963,7 @@ function limparAjuste(rota) {{
         linha.querySelector('.ap-excluir').checked = false;
         linha.classList.remove('ap-excluida');
         linha.querySelector('.ap-pos').value = i + 1;
+        linha.querySelector('.ap-mensagem').value = '';
       }});
     }})
     .catch(err => {{ statusEl.textContent = 'Erro ao limpar os ajustes.'; statusEl.style.color = '#c00000'; console.error(err); }});
@@ -970,6 +986,7 @@ function carregarAjustes() {{
       if (d.veiculo) document.getElementById('ajusteVeiculo-' + rota.id).value = d.veiculo;
       const removidos = new Set(d.removidos || []);
       const posicao = new Map((d.ordem || []).map((c, i) => [c, i]));
+      const mensagens = d.mensagens || {{}};
       document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada').forEach(linha => {{
         const codigo = linha.dataset.codigo;
         if (removidos.has(codigo)) {{
@@ -978,6 +995,9 @@ function carregarAjustes() {{
         }}
         if (posicao.has(codigo)) {{
           linha.querySelector('.ap-pos').value = posicao.get(codigo) + 1;
+        }}
+        if (mensagens[codigo]) {{
+          linha.querySelector('.ap-mensagem').value = mensagens[codigo];
         }}
       }});
       card.open = true;
