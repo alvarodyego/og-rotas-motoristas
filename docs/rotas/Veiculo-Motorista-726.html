@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>Veiculo - Motorista 726</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:10</div>
+  <div class="sub">Atualizado em 22/07/2026 22:24</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "24001629", "cliente": "01000232       ADEGA MILHOMEM", "endereco": "RUA DAS JABOTICABEIRA 1 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827170", "lat": -7.190519, "lon": -48.193495, "dist_anterior_km": 9.148399999999999, "dist_proxima_km": 0.2786}, {"seq": 2, "codigo": "24001629", "cliente": "01002059       ADEGAO WF         01", "endereco": "RUA DOS JATOBAS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827090", "lat": -7.189398, "lon": -48.191719, "dist_anterior_km": 0.2786, "dist_proxima_km": 0.0072}, {"seq": 3, "codigo": "24001629", "cliente": "01000805       SUL BEBIDAS", "endereco": "RUA DOS JATOBAS 635 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827090", "lat": -7.189446, "lon": -48.191675, "dist_anterior_km": 0.0072, "dist_proxima_km": 0.2672}, {"seq": 4, "codigo": "24001629", "cliente": "01000139       ADEGA DO GIL      01", "endereco": "RUA DOS ABACATEIROS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.187663, "lon": -48.192438, "dist_anterior_km": 0.2672, "dist_proxima_km": 0.16440000000000002}, {"seq": 5, "codigo": "24001629", "cliente": "01000160       MERCA DO MINEIRO", "endereco": "RUA DOS ABACATEIROS S/N -00982BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.186861, "lon": -48.191345, "dist_anterior_km": 0.16440000000000002, "dist_proxima_km": 0.25880000000000003}, {"seq": 6, "codigo": "24001629", "cliente": "01000464       BAR DA JOANA 01", "endereco": "RUA DAS MARCIEIRAS, 580 -01050BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827190", "lat": -7.188096, "lon": -48.189686, "dist_anterior_km": 0.25880000000000003, "dist_proxima_km": 0.18430000000000002}, {"seq": 7, "codigo": "24001629", "cliente": "01000612       POINT DO MUIDO", "endereco": "AV SAO FRANCISCO S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.187768, "lon": -48.188531, "dist_anterior_km": 0.18430000000000002, "dist_proxima_km": 0.3561}, {"seq": 8, "codigo": "24001629", "cliente": "01000012       MERC E BAR LUNA", "endereco": "AV GUAIBA, 539 -00939BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77800000", "lat": -7.189588, "lon": -48.18888, "dist_anterior_km": 0.3561, "dist_proxima_km": 0.6342000000000001}, {"seq": 9, "codigo": "24001629", "cliente": "01002569       ADEGA ABURQUEQUE", "endereco": "RUA DO PAU BRASIL QD F2 LT 24 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827210", "lat": -7.187467, "lon": -48.184673, "dist_anterior_km": 0.6342000000000001, "dist_proxima_km": 0.2879}, {"seq": 10, "codigo": "24001629", "cliente": "01000776       JV LIMA", "endereco": "RUA DAS GOIABEIRAS S/N -01108BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827350", "lat": -7.187846, "lon": -48.182783, "dist_anterior_km": 0.2879, "dist_proxima_km": 0.1363}, {"seq": 11, "codigo": "24001629", "cliente": "01000432       FRANCIS BAR 01", "endereco": "RUA DAS FAIAS LT 17, 100TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77808180", "lat": -7.188473, "lon": -48.182788, "dist_anterior_km": 0.1363, "dist_proxima_km": 0.32880000000000004}, {"seq": 12, "codigo": "24001629", "cliente": "01000249       ADEGA DO CESAR", "endereco": "RUA PADRE CICERO S/N -01001SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77826526", "lat": -7.190851, "lon": -48.182843, "dist_anterior_km": 0.32880000000000004, "dist_proxima_km": 0.144}, {"seq": 13, "codigo": "24001629", "cliente": "01000005       MERC E BAR DEUSELIR", "endereco": "RUA DOS PINHEIROS S/N -00938BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77813520", "lat": -7.19126, "lon": -48.183723, "dist_anterior_km": 0.144, "dist_proxima_km": 0.0724}, {"seq": 14, "codigo": "24001629", "cliente": "01000784       ADEGA NASCIMENTO 01", "endereco": "RUA DOS PINHEIROS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77800000", "lat": -7.190591, "lon": -48.183581, "dist_anterior_km": 0.0724, "dist_proxima_km": 0.7347}, {"seq": 15, "codigo": "24001629", "cliente": "01002854       DISTRIBUIDORA TH", "endereco": "RUI BRASIL QD12 LT21, 310TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77826498", "lat": -7.187848, "lon": -48.179926, "dist_anterior_km": 0.7347, "dist_proxima_km": 0.09259999999999999}, {"seq": 16, "codigo": "24001629", "cliente": "01001277       MERCADINHO DO AVACY", "endereco": "AV BRASIL, 144TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77826498", "lat": -7.187235, "lon": -48.18016, "dist_anterior_km": 0.09259999999999999, "dist_proxima_km": 0.8025}, {"seq": 17, "codigo": "24001629", "cliente": "01000592       BAR E ADEGA CORRO", "endereco": "RUA DAS MACIEIRAS S/N -01071BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.182976, "lon": -48.184168, "dist_anterior_km": 0.8025, "dist_proxima_km": 0.15930000000000002}, {"seq": 18, "codigo": "24001629", "cliente": "01002919       ADEGA DO PROF     01", "endereco": "AV PARAGUAI01 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827050", "lat": -7.181672, "lon": -48.183664, "dist_anterior_km": 0.15930000000000002, "dist_proxima_km": 0.49169999999999997}, {"seq": 19, "codigo": "24001629", "cliente": "01001662       ADEGA.COM", "endereco": "RUA DOS MACAUBAS S/N -QDE20 LT20BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827200", "lat": -7.184075, "lon": -48.186055, "dist_anterior_km": 0.49169999999999997, "dist_proxima_km": 0.0281}, {"seq": 20, "codigo": "24001629", "cliente": "01000148       COMER AMORIM", "endereco": "RUA JABUTICABESQ S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.18415, "lon": -48.18633, "dist_anterior_km": 0.0281, "dist_proxima_km": 0.29560000000000003}, {"seq": 21, "codigo": "24001629", "cliente": "01000034       BAR DO FILO", "endereco": "RUA DAS JAQUEIRAS QD E5 LT 18 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827170", "lat": -7.184905, "lon": -48.188323, "dist_anterior_km": 0.29560000000000003, "dist_proxima_km": 0.7327}, {"seq": 22, "codigo": "24001629", "cliente": "01001947       ACOUGUE POPULAR", "endereco": "RUA PRATA S/N -Q K-7 L 32BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77826080", "lat": -7.179613, "lon": -48.190685, "dist_anterior_km": 0.7327, "dist_proxima_km": 0.3317}, {"seq": 23, "codigo": "24001629", "cliente": "01002708       ARROZ SEPARADO BAR", "endereco": "AV PARAGUAI QD01 LT03 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827050", "lat": -7.180945, "lon": -48.1921, "dist_anterior_km": 0.3317, "dist_proxima_km": 0.3495}, {"seq": 24, "codigo": "24001629", "cliente": "01000428       SKINAO", "endereco": "RUA SIBIPIRUNA QD 01 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77807280", "lat": -7.181151, "lon": -48.191358, "dist_anterior_km": 0.3495, "dist_proxima_km": 0.3955}, {"seq": 25, "codigo": "24001629", "cliente": "01002556       MANGABAS BAR", "endereco": "RUA DAS SIBIPIRUNAS QD 01 LT 13 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827300", "lat": -7.182333, "lon": -48.191362, "dist_anterior_km": 0.3955, "dist_proxima_km": 0.7293999999999999}, {"seq": 26, "codigo": "24001629", "cliente": "01000047       MERCADINHO LALA", "endereco": "RUA DAS ARUEIRAS, 120 -00945BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77817130", "lat": -7.183794, "lon": -48.193132, "dist_anterior_km": 0.7293999999999999, "dist_proxima_km": 0.1979}, {"seq": 27, "codigo": "24001629", "cliente": "01002977       ADEGA TESCO", "endereco": "AV AMAZONAS, 886BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77826170", "lat": -7.182436, "lon": -48.19356, "dist_anterior_km": 0.1979, "dist_proxima_km": 0.7503}, {"seq": 28, "codigo": "24001629", "cliente": "01002581       BAR DO ZEZINHO    01", "endereco": "RUA LARANJEIRAS, 178LOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827025", "lat": -7.184838, "lon": -48.19335, "dist_anterior_km": 0.7503, "dist_proxima_km": 0.188}, {"seq": 29, "codigo": "24001629", "cliente": "01000107       MERCADINHO DO LUIZ", "endereco": "RUA DOS DOS CEDROS S/NSETOR IMACULADA CONCARAGUAINATO - SETOR IMACULADA CONC - ARAGUAINA/TO - CEP 77827100", "lat": -7.186165, "lon": -48.193636, "dist_anterior_km": 0.188, "dist_proxima_km": 1.5078}, {"seq": 30, "codigo": "24001629", "cliente": "01002252       ARENA SAO JORGE", "endereco": "PRC IGUACU QD 101 L 04 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827390", "lat": -7.180471, "lon": -48.18597, "dist_anterior_km": 1.5078, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "24001629", "pedido": "0270", "cliente": "01000232       ADEGA MILHOMEM", "endereco": "RUA DAS JABOTICABEIRA 1 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827170", "lat": -7.190519, "lon": -48.193495, "dist_anterior_km": 9.148399999999999, "dist_proxima_km": 0.2786}, {"seq": 2, "codigo": "24001629", "pedido": "0275", "cliente": "01002059       ADEGAO WF         01", "endereco": "RUA DOS JATOBAS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827090", "lat": -7.189398, "lon": -48.191719, "dist_anterior_km": 0.2786, "dist_proxima_km": 0.0072}, {"seq": 3, "codigo": "24001629", "pedido": "0081", "cliente": "01000805       SUL BEBIDAS", "endereco": "RUA DOS JATOBAS 635 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827090", "lat": -7.189446, "lon": -48.191675, "dist_anterior_km": 0.0072, "dist_proxima_km": 0.2672}, {"seq": 4, "codigo": "24001629", "pedido": "0114", "cliente": "01000139       ADEGA DO GIL      01", "endereco": "RUA DOS ABACATEIROS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.187663, "lon": -48.192438, "dist_anterior_km": 0.2672, "dist_proxima_km": 0.16440000000000002}, {"seq": 5, "codigo": "24001629", "pedido": "0170", "cliente": "01000160       MERCA DO MINEIRO", "endereco": "RUA DOS ABACATEIROS S/N -00982BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.186861, "lon": -48.191345, "dist_anterior_km": 0.16440000000000002, "dist_proxima_km": 0.25880000000000003}, {"seq": 6, "codigo": "24001629", "pedido": "0128", "cliente": "01000464       BAR DA JOANA 01", "endereco": "RUA DAS MARCIEIRAS, 580 -01050BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827190", "lat": -7.188096, "lon": -48.189686, "dist_anterior_km": 0.25880000000000003, "dist_proxima_km": 0.18430000000000002}, {"seq": 7, "codigo": "24001629", "pedido": "0408", "cliente": "01000612       POINT DO MUIDO", "endereco": "AV SAO FRANCISCO S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.187768, "lon": -48.188531, "dist_anterior_km": 0.18430000000000002, "dist_proxima_km": 0.3561}, {"seq": 8, "codigo": "24001629", "pedido": "0277", "cliente": "01000012       MERC E BAR LUNA", "endereco": "AV GUAIBA, 539 -00939BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77800000", "lat": -7.189588, "lon": -48.18888, "dist_anterior_km": 0.3561, "dist_proxima_km": 0.6342000000000001}, {"seq": 9, "codigo": "24001629", "pedido": "0418", "cliente": "01002569       ADEGA ABURQUEQUE", "endereco": "RUA DO PAU BRASIL QD F2 LT 24 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827210", "lat": -7.187467, "lon": -48.184673, "dist_anterior_km": 0.6342000000000001, "dist_proxima_km": 0.2879}, {"seq": 10, "codigo": "24001629", "pedido": "0413", "cliente": "01000776       JV LIMA", "endereco": "RUA DAS GOIABEIRAS S/N -01108BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827350", "lat": -7.187846, "lon": -48.182783, "dist_anterior_km": 0.2879, "dist_proxima_km": 0.1363}, {"seq": 11, "codigo": "24001629", "pedido": "0416", "cliente": "01000432       FRANCIS BAR 01", "endereco": "RUA DAS FAIAS LT 17, 100TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77808180", "lat": -7.188473, "lon": -48.182788, "dist_anterior_km": 0.1363, "dist_proxima_km": 0.32880000000000004}, {"seq": 12, "codigo": "24001629", "pedido": "0141", "cliente": "01000249       ADEGA DO CESAR", "endereco": "RUA PADRE CICERO S/N -01001SETOR RAIZALARAGUAINATO - SETOR RAIZAL - ARAGUAINA/TO - CEP 77826526", "lat": -7.190851, "lon": -48.182843, "dist_anterior_km": 0.32880000000000004, "dist_proxima_km": 0.144}, {"seq": 13, "codigo": "24001629", "pedido": "0417", "cliente": "01000005       MERC E BAR DEUSELIR", "endereco": "RUA DOS PINHEIROS S/N -00938BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77813520", "lat": -7.19126, "lon": -48.183723, "dist_anterior_km": 0.144, "dist_proxima_km": 0.0724}, {"seq": 14, "codigo": "24001629", "pedido": "0419", "cliente": "01000784       ADEGA NASCIMENTO 01", "endereco": "RUA DOS PINHEIROS S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77800000", "lat": -7.190591, "lon": -48.183581, "dist_anterior_km": 0.0724, "dist_proxima_km": 0.7347}, {"seq": 15, "codigo": "24001629", "pedido": "0414", "cliente": "01002854       DISTRIBUIDORA TH", "endereco": "RUI BRASIL QD12 LT21, 310TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77826498", "lat": -7.187848, "lon": -48.179926, "dist_anterior_km": 0.7347, "dist_proxima_km": 0.09259999999999999}, {"seq": 16, "codigo": "24001629", "pedido": "0110", "cliente": "01001277       MERCADINHO DO AVACY", "endereco": "AV BRASIL, 144TEREZA HILARIOARAGUAINATO - TEREZA HILARIO - ARAGUAINA/TO - CEP 77826498", "lat": -7.187235, "lon": -48.18016, "dist_anterior_km": 0.09259999999999999, "dist_proxima_km": 0.8025}, {"seq": 17, "codigo": "24001629", "pedido": "0104", "cliente": "01000592       BAR E ADEGA CORRO", "endereco": "RUA DAS MACIEIRAS S/N -01071BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.182976, "lon": -48.184168, "dist_anterior_km": 0.8025, "dist_proxima_km": 0.15930000000000002}, {"seq": 18, "codigo": "24001629", "pedido": "0409", "cliente": "01002919       ADEGA DO PROF     01", "endereco": "AV PARAGUAI01 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827050", "lat": -7.181672, "lon": -48.183664, "dist_anterior_km": 0.15930000000000002, "dist_proxima_km": 0.49169999999999997}, {"seq": 19, "codigo": "24001629", "pedido": "0412", "cliente": "01001662       ADEGA.COM", "endereco": "RUA DOS MACAUBAS S/N -QDE20 LT20BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827200", "lat": -7.184075, "lon": -48.186055, "dist_anterior_km": 0.49169999999999997, "dist_proxima_km": 0.0281}, {"seq": 20, "codigo": "24001629", "pedido": "0102", "cliente": "01000148       COMER AMORIM", "endereco": "RUA JABUTICABESQ S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77825040", "lat": -7.18415, "lon": -48.18633, "dist_anterior_km": 0.0281, "dist_proxima_km": 0.29560000000000003}, {"seq": 21, "codigo": "24001629", "pedido": "0406", "cliente": "01000034       BAR DO FILO", "endereco": "RUA DAS JAQUEIRAS QD E5 LT 18 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827170", "lat": -7.184905, "lon": -48.188323, "dist_anterior_km": 0.29560000000000003, "dist_proxima_km": 0.7327}, {"seq": 22, "codigo": "24001629", "pedido": "0421", "cliente": "01001947       ACOUGUE POPULAR", "endereco": "RUA PRATA S/N -Q K-7 L 32BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77826080", "lat": -7.179613, "lon": -48.190685, "dist_anterior_km": 0.7327, "dist_proxima_km": 0.3317}, {"seq": 23, "codigo": "24001629", "pedido": "0407", "cliente": "01002708       ARROZ SEPARADO BAR", "endereco": "AV PARAGUAI QD01 LT03 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827050", "lat": -7.180945, "lon": -48.1921, "dist_anterior_km": 0.3317, "dist_proxima_km": 0.3495}, {"seq": 24, "codigo": "24001629", "pedido": "0411", "cliente": "01000428       SKINAO", "endereco": "RUA SIBIPIRUNA QD 01 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77807280", "lat": -7.181151, "lon": -48.191358, "dist_anterior_km": 0.3495, "dist_proxima_km": 0.3955}, {"seq": 25, "codigo": "24001629", "pedido": "0410", "cliente": "01002556       MANGABAS BAR", "endereco": "RUA DAS SIBIPIRUNAS QD 01 LT 13 S/NLOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827300", "lat": -7.182333, "lon": -48.191362, "dist_anterior_km": 0.3955, "dist_proxima_km": 0.7293999999999999}, {"seq": 26, "codigo": "24001629", "pedido": "0122", "cliente": "01000047       MERCADINHO LALA", "endereco": "RUA DAS ARUEIRAS, 120 -00945BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77817130", "lat": -7.183794, "lon": -48.193132, "dist_anterior_km": 0.7293999999999999, "dist_proxima_km": 0.1979}, {"seq": 27, "codigo": "24001629", "pedido": "0420", "cliente": "01002977       ADEGA TESCO", "endereco": "AV AMAZONAS, 886BAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77826170", "lat": -7.182436, "lon": -48.19356, "dist_anterior_km": 0.1979, "dist_proxima_km": 0.7503}, {"seq": 28, "codigo": "24001629", "pedido": "0286", "cliente": "01002581       BAR DO ZEZINHO    01", "endereco": "RUA LARANJEIRAS, 178LOTEAMENTO ARAGUAINAARAGUAINATO - LOTEAMENTO ARAGUAINA - ARAGUAINA/TO - CEP 77827025", "lat": -7.184838, "lon": -48.19335, "dist_anterior_km": 0.7503, "dist_proxima_km": 0.188}, {"seq": 29, "codigo": "24001629", "pedido": "0075", "cliente": "01000107       MERCADINHO DO LUIZ", "endereco": "RUA DOS DOS CEDROS S/NSETOR IMACULADA CONCARAGUAINATO - SETOR IMACULADA CONC - ARAGUAINA/TO - CEP 77827100", "lat": -7.186165, "lon": -48.193636, "dist_anterior_km": 0.188, "dist_proxima_km": 1.5078}, {"seq": 30, "codigo": "24001629", "pedido": "0415", "cliente": "01002252       ARENA SAO JORGE", "endereco": "PRC IGUACU QD 101 L 04 S/NBAIRRO ARAGUAINA SULARAGUAINATO - BAIRRO ARAGUAINA SUL - ARAGUAINA/TO - CEP 77827390", "lat": -7.180471, "lon": -48.18597, "dist_anterior_km": 1.5078, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.214238, -48.244759], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208322, -48.236399], [-7.208208, -48.234595], [-7.203712, -48.223746], [-7.201798, -48.21526], [-7.203045, -48.205468], [-7.202546, -48.201508], [-7.202259, -48.201226], [-7.196662, -48.203483], [-7.195679, -48.200852], [-7.193399, -48.200318], [-7.19474, -48.194994], [-7.191851, -48.194148], [-7.191015, -48.1931], [-7.190531, -48.193509], [-7.189111, -48.191967], [-7.189399, -48.19172], [-7.189448, -48.191677], [-7.189635, -48.191517], [-7.191015, -48.1931], [-7.190495, -48.193539], [-7.189111, -48.191967], [-7.188062, -48.19287], [-7.187677, -48.192425], [-7.186828, -48.191308], [-7.188301, -48.19001], [-7.18805, -48.189727], [-7.187331, -48.188909], [-7.187764, -48.188526], [-7.188348, -48.188019], [-7.18932, -48.189093], [-7.189584, -48.188875], [-7.189999, -48.188522], [-7.187626, -48.185809], [-7.188101, -48.185359], [-7.187489, -48.184653], [-7.186762, -48.183814], [-7.187884, -48.182827], [-7.188107, -48.182292], [-7.188512, -48.182755], [-7.188943, -48.183252], [-7.190016, -48.182649], [-7.190573, -48.183091], [-7.190823, -48.182817], [-7.191595, -48.181926], [-7.192279, -48.182914], [-7.191287, -48.183689], [-7.190806, -48.183796], [-7.189619, -48.184996], [-7.187766, -48.182932], [-7.188102, -48.182511], [-7.187854, -48.179925], [-7.187763, -48.179096], [-7.18739, -48.179133], [-7.187498, -48.180154], [-7.187237, -48.180181], [-7.186298, -48.180283], [-7.186443, -48.182017], [-7.183521, -48.184573], [-7.183012, -48.18412], [-7.181674, -48.183635], [-7.181651, -48.18134], [-7.181417, -48.185442], [-7.180465, -48.186048], [-7.180644, -48.187244], [-7.181314, -48.18758], [-7.182076, -48.187361], [-7.182486, -48.186555], [-7.182237, -48.185825], [-7.183082, -48.185084], [-7.184005, -48.186119], [-7.184173, -48.18631], [-7.185395, -48.187728], [-7.184967, -48.188267], [-7.186229, -48.189689], [-7.183643, -48.191635], [-7.181046, -48.1921], [-7.180993, -48.192989], [-7.178515, -48.191787], [-7.178582, -48.190615], [-7.179614, -48.190657], [-7.181128, -48.190718], [-7.180945, -48.192099], [-7.179114, -48.192082], [-7.178515, -48.191787], [-7.181019, -48.193183], [-7.181197, -48.191361], [-7.181168, -48.190034], [-7.181019, -48.193183], [-7.181193, -48.191413], [-7.182321, -48.1913], [-7.184589, -48.190256], [-7.185627, -48.191452], [-7.183731, -48.193067], [-7.182948, -48.193931], [-7.182387, -48.193665], [-7.180922, -48.193051], [-7.183536, -48.194338], [-7.184854, -48.193009], [-7.185014, -48.193197], [-7.185703, -48.194039], [-7.186168, -48.19364], [-7.186947, -48.192972], [-7.18754, -48.193319], [-7.182159, -48.187288], [-7.182468, -48.186718], [-7.182315, -48.185929], [-7.181417, -48.185442], [-7.1805, -48.185987]];
 const TRACADO_VOLTA = [[-7.1805, -48.185987], [-7.18047, -48.186991], [-7.181314, -48.18758], [-7.180629, -48.199265], [-7.180059, -48.201483], [-7.185123, -48.202762], [-7.184962, -48.204475], [-7.185752, -48.208576], [-7.187038, -48.211528], [-7.188045, -48.212429], [-7.189023, -48.21277], [-7.189037, -48.213523], [-7.18996, -48.214384], [-7.187952, -48.216245], [-7.193116, -48.234056], [-7.19281, -48.23501], [-7.199315, -48.23777], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-22';
 const ROTULO_ROTA = "Veiculo - Motorista 726";
 const NUMERO_MOTORISTA = "726";
+const ROTA_ID = "RT001006";
+const VEICULO_ORIGINAL = null;
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "726";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>

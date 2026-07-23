@@ -21,6 +21,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -85,6 +86,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body class="bloqueado">
@@ -102,6 +122,16 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
 </header>
 <main>
+  <h2 class="secao-titulo">Ajustar rotas de hoje</h2>
+  <p style="font-size:0.78rem; color:#666; margin: 0 12px 10px 12px;">
+    Corrija motorista, veiculo, ordem de visita ou tire uma parada de uma rota
+    de hoje sem esperar um novo arquivo do PathFind. O km mostrado ao
+    motorista continua sendo o original; a pagina dele so' avisa que a rota
+    foi ajustada manualmente.
+  </p>
+  <div id="listaAjustes"></div>
+
+  <h2 class="secao-titulo">Senhas dos motoristas</h2>
   <div class="admin-topo">
     <button id="btnGerarPadrao">Gerar senha padrao pra todo mundo</button>
   </div>
@@ -120,6 +150,8 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script>
 const NUMERO_MIN = 720;
 const NUMERO_MAX = 731;
+const DATA_ISO = '2026-07-22';
+const ROTAS_HOJE = [{"id": "RT001002", "rotulo": "RMB-6G44 - Motorista 725", "veiculo": "RMB-6G44", "motorista_numero": "725", "paradas": [{"seq": 1, "codigo": "01180113", "cliente": "CHURRASCARIA MARAJO"}, {"seq": 2, "codigo": "01180202", "cliente": "CLUB MAIS CONVENIENC"}, {"seq": 3, "codigo": "01180106", "cliente": "SHAMPOO"}, {"seq": 4, "codigo": "01180170", "cliente": "BAR PONTO CERTO   02"}, {"seq": 5, "codigo": "01170013", "cliente": "BAR REFLEXO DO SOL"}, {"seq": 6, "codigo": "01170020", "cliente": "SUPER UNIAO."}, {"seq": 7, "codigo": "01170074", "cliente": "ADEGA E RESTAURANTE"}, {"seq": 8, "codigo": "01170065", "cliente": "BAR ZERO GRAU"}, {"seq": 9, "codigo": "01170071", "cliente": "ACOUGUE GARCIA"}, {"seq": 10, "codigo": "01170057", "cliente": "ADEGA DO BEKA     01"}, {"seq": 11, "codigo": "01170072", "cliente": "BAR E PETISC DO ZE M"}, {"seq": 12, "codigo": "01170038", "cliente": "BAR MIRANDINHA"}, {"seq": 13, "codigo": "01170001", "cliente": "VILLAS MERCADINHO"}, {"seq": 14, "codigo": "01170024", "cliente": "BAR DA TOINHA     01"}, {"seq": 15, "codigo": "01170004", "cliente": "MERCE DA ANA MARIA"}, {"seq": 16, "codigo": "01160037", "cliente": "BAR DO GILBERTO 01"}, {"seq": 17, "codigo": "01160081", "cliente": "CANTINHO DA SIMONE"}, {"seq": 18, "codigo": "01160039", "cliente": "BAR FIM DE TARDE 21"}, {"seq": 19, "codigo": "01160139", "cliente": "MERC PAGUE MENOS"}, {"seq": 20, "codigo": "01160021", "cliente": "PEG PAG RODRIGUES 01"}, {"seq": 21, "codigo": "01160151", "cliente": "MERCADO FEITOSA"}, {"seq": 22, "codigo": "01160052", "cliente": "ADEGA PARAGAS 02"}, {"seq": 23, "codigo": "01160105", "cliente": "PIZZARIA ARAGUAIA"}, {"seq": 24, "codigo": "01160147", "cliente": "JANTINHA DH"}, {"seq": 25, "codigo": "01160137", "cliente": "BARZIM DISTR"}, {"seq": 26, "codigo": "01160057", "cliente": "LANCH CALYPSO"}, {"seq": 27, "codigo": "01160152", "cliente": "SUPER CS S CARNE PIN"}, {"seq": 28, "codigo": "01160080", "cliente": "PRA VC SUPERMERCADO"}, {"seq": 29, "codigo": "01160060", "cliente": "PEG PAG PONTO CERTO"}, {"seq": 30, "codigo": "01160061", "cliente": "SUP TRIANGULO 01"}, {"seq": 31, "codigo": "01160143", "cliente": "ADEGA LL          02"}, {"seq": 32, "codigo": "01160098", "cliente": "BAR DO ZE FILHO"}, {"seq": 33, "codigo": "01160149", "cliente": "MIX JANTINHA"}, {"seq": 34, "codigo": "01190072", "cliente": "BAR D CARCAO BUCHADA"}, {"seq": 35, "codigo": "01160084", "cliente": "MERCEARIA RODRIGUES"}, {"seq": 36, "codigo": "01160072", "cliente": "BAR DO CAPIXABA"}, {"seq": 37, "codigo": "01160001", "cliente": "MERCADINHO MINE PREC"}, {"seq": 38, "codigo": "01160146", "cliente": "COMERCIAL ARAUJO"}, {"seq": 39, "codigo": "01160019", "cliente": "SUPERMECADO ALIANCA"}, {"seq": 40, "codigo": "01160124", "cliente": "BAR DO ZE         01"}, {"seq": 41, "codigo": "01160051", "cliente": "BAR E LANCH DA DAI"}, {"seq": 42, "codigo": "01160144", "cliente": "RANCHO DS"}, {"seq": 43, "codigo": "01160089", "cliente": "PARRILHA CORTES NOBR"}, {"seq": 44, "codigo": "01160136", "cliente": "BATATA DOCE"}, {"seq": 45, "codigo": "01160120", "cliente": "CONVENIENCIA DORAZIO"}, {"seq": 46, "codigo": "01160065", "cliente": "CHURR E LANCH IDEAL"}, {"seq": 47, "codigo": "01190136", "cliente": "CASA DA BUCHADA"}, {"seq": 48, "codigo": "01190096", "cliente": "BARATAO DOIS IRMAO"}, {"seq": 49, "codigo": "01190023", "cliente": "BAR CHEGA MAIS"}, {"seq": 50, "codigo": "01190095", "cliente": "MERCEARIA SM"}, {"seq": 51, "codigo": "01190032", "cliente": "DIST BEB DO PIMENTA"}, {"seq": 52, "codigo": "01190132", "cliente": "BAR DA TAYNA"}, {"seq": 53, "codigo": "01190139", "cliente": "SUPER FABIAN"}, {"seq": 54, "codigo": "01190137", "cliente": "CASA DE CARN CORT FI"}, {"seq": 55, "codigo": "01190138", "cliente": "SUPER SAO LUIZ"}, {"seq": 56, "codigo": "01190134", "cliente": "SUPERMECADO MODELO"}, {"seq": 57, "codigo": "01190092", "cliente": "PIX BAR"}, {"seq": 58, "codigo": "01190006", "cliente": "MERCADINHO SILVA 04"}, {"seq": 59, "codigo": "01190055", "cliente": "JANTINHA MORAIS   01"}, {"seq": 60, "codigo": "01190046", "cliente": "SUP PAI E FILHO"}, {"seq": 61, "codigo": "01190091", "cliente": "MERCADO BOM PRECO"}, {"seq": 62, "codigo": "01190051", "cliente": "O FORASTEIRO"}, {"seq": 63, "codigo": "01190118", "cliente": "BAR RB"}, {"seq": 64, "codigo": "01190109", "cliente": "BOTECO CARIOCA"}, {"seq": 65, "codigo": "01190127", "cliente": "BAR REST TEMP GOIANO"}, {"seq": 66, "codigo": "01190123", "cliente": "CASA DE CARNES PREMI"}, {"seq": 67, "codigo": "01190131", "cliente": "PEG PAG ARAUJO    01"}, {"seq": 68, "codigo": "01190010", "cliente": "PORCAO CARNES"}]}, {"id": "RT001003", "rotulo": "RMB-6G37 - Motorista 723", "veiculo": "RMB-6G37", "motorista_numero": "723", "paradas": [{"seq": 1, "codigo": "01040017", "cliente": "RESTAURANTE SABOR CA"}, {"seq": 2, "codigo": "01040083", "cliente": "BURGUER MIX"}, {"seq": 3, "codigo": "01040015", "cliente": "ESPETO MANIA      00"}, {"seq": 4, "codigo": "01040009", "cliente": "MINI BOX AVENIDA"}, {"seq": 5, "codigo": "01040080", "cliente": "ADEGA MIX         02"}, {"seq": 6, "codigo": "01040036", "cliente": "GULOSO PIZZARIA"}, {"seq": 7, "codigo": "01040001", "cliente": "PEG PAG PARAISO"}, {"seq": 8, "codigo": "01040018", "cliente": "BAR ENCONT D ESTRELA"}, {"seq": 9, "codigo": "01040021", "cliente": "RANCHO SERTANEJO"}, {"seq": 10, "codigo": "01040081", "cliente": "BRASILEIRAO"}, {"seq": 11, "codigo": "01040059", "cliente": "DISTRIB OPEN BAR"}, {"seq": 12, "codigo": "01040032", "cliente": "BEM BOLADO BIER"}, {"seq": 13, "codigo": "01040011", "cliente": "MERCADINHO POPULAR"}, {"seq": 14, "codigo": "01040031", "cliente": "RECANTOS BAR E RESTA"}, {"seq": 15, "codigo": "01040022", "cliente": "BAR DO CLAUDIO 01"}, {"seq": 16, "codigo": "01040056", "cliente": "DISTRIB RAMALHO"}, {"seq": 17, "codigo": "01090022", "cliente": "CONV PETROLIMA"}, {"seq": 18, "codigo": "01090082", "cliente": "BAR ESCONDIDINHO"}, {"seq": 19, "codigo": "01090083", "cliente": "BAR JAVALI"}, {"seq": 20, "codigo": "01090098", "cliente": "BAR CINCO ESTRELA"}, {"seq": 21, "codigo": "01090102", "cliente": "MERC LABIOS DE MEL"}, {"seq": 22, "codigo": "01090101", "cliente": "BAR AMOR E CANA"}, {"seq": 23, "codigo": "01090054", "cliente": "BAR BEIRA RIO"}, {"seq": 24, "codigo": "01090095", "cliente": "IGLOO SORVETERIA"}, {"seq": 25, "codigo": "01090057", "cliente": "ADEGA BENTIVI"}, {"seq": 26, "codigo": "01090087", "cliente": "COMERCIAL PERES"}, {"seq": 27, "codigo": "01090009", "cliente": "SABOR DA PICANHA"}, {"seq": 28, "codigo": "01090016", "cliente": "JM CONVENIENCIA"}, {"seq": 29, "codigo": "01090112", "cliente": "ESPETINHO DO TOM"}, {"seq": 30, "codigo": "01090107", "cliente": "ESTACAO DO TERERE"}, {"seq": 31, "codigo": "01090109", "cliente": "LANC E ESP POR D SOL"}, {"seq": 32, "codigo": "01090080", "cliente": "MERCADINHO SANTOS"}, {"seq": 33, "codigo": "01090115", "cliente": "BAR BEIRA RIO 02"}, {"seq": 34, "codigo": "01090025", "cliente": "COMERCIAL MARLON 01"}, {"seq": 35, "codigo": "01090019", "cliente": "ADEGA DO MUAMBA"}, {"seq": 36, "codigo": "01090032", "cliente": "ADEGA BOM KI SO"}, {"seq": 37, "codigo": "01090103", "cliente": "ADEGA BOM KISO"}, {"seq": 38, "codigo": "01090078", "cliente": "COMERCIAL RAMOS   01"}, {"seq": 39, "codigo": "01090100", "cliente": "DIST BEBIDAS A HORAS"}, {"seq": 40, "codigo": "01090071", "cliente": "CONVENIENCIA SILVA"}, {"seq": 41, "codigo": "01090086", "cliente": "COMERCIAL J E B"}, {"seq": 42, "codigo": "01090116", "cliente": "JD DISTRIBUIDORA"}, {"seq": 43, "codigo": "01090110", "cliente": "AREA VERDE"}, {"seq": 44, "codigo": "01090037", "cliente": "MERCEARIA JOAO DA NE"}, {"seq": 45, "codigo": "01090044", "cliente": "BAR ENCONTRO DOS AMI"}, {"seq": 46, "codigo": "01050132", "cliente": "DIST DE BEBIDAS"}, {"seq": 47, "codigo": "01050048", "cliente": "ESSENCIAL SUP MERCAD"}, {"seq": 48, "codigo": "01050016", "cliente": "BAR DA LATINHA"}, {"seq": 49, "codigo": "01050003", "cliente": "SUPERMERCADO ROSE"}, {"seq": 50, "codigo": "01050077", "cliente": "CONVEN OLIVEIRA"}, {"seq": 51, "codigo": "01050117", "cliente": "BAR LUCIA"}, {"seq": 52, "codigo": "01050133", "cliente": "TROPICANAS"}, {"seq": 53, "codigo": "01050024", "cliente": "CENTRAL DA CERVEJA"}, {"seq": 54, "codigo": "01050088", "cliente": "IMPERIO CONVENIENCIA"}, {"seq": 55, "codigo": "01050128", "cliente": "COMERCIAL POPULAR"}, {"seq": 56, "codigo": "01050099", "cliente": "BAR ENCONTRO AMIGO02"}, {"seq": 57, "codigo": "01050015", "cliente": "BAR DO TUCUM"}, {"seq": 58, "codigo": "01050014", "cliente": "BAR E REST DO PATO"}, {"seq": 59, "codigo": "01040039", "cliente": "REST CHAPEU PALHA"}, {"seq": 60, "codigo": "01050124", "cliente": "KS DISTRIBUIDORA  01"}, {"seq": 61, "codigo": "01050046", "cliente": "DISTRIB PURO MALTE"}, {"seq": 62, "codigo": "01050137", "cliente": "DISTRIBUIDORA BRITO"}]}, {"id": "RT001004", "rotulo": "RMB-6G45 - Motorista 724", "veiculo": "RMB-6G45", "motorista_numero": "724", "paradas": [{"seq": 1, "codigo": "00420351", "cliente": "BR CONVENIENCIA"}, {"seq": 2, "codigo": "01070007", "cliente": "MERCEARIA DA DEUSA"}, {"seq": 3, "codigo": "00420358", "cliente": "POINT ESPETINHOS"}, {"seq": 4, "codigo": "00420359", "cliente": "PRIME DISTRIBUIDORA"}, {"seq": 5, "codigo": "00420355", "cliente": "BAR DAS COLEGUINHAS"}, {"seq": 6, "codigo": "00420346", "cliente": "BAR DO BIGODE     01"}, {"seq": 7, "codigo": "00420362", "cliente": "BAR DA ROSIANE"}, {"seq": 8, "codigo": "00420349", "cliente": "ADEGA DO JEAN"}, {"seq": 9, "codigo": "00420354", "cliente": "BAR DO FESTAK"}, {"seq": 10, "codigo": "00030075", "cliente": "CANTINHO DOS AMIGOS"}, {"seq": 11, "codigo": "00030020", "cliente": "MERCEARIA DO NENZIM"}, {"seq": 12, "codigo": "00030104", "cliente": "MERCADINHO MV"}, {"seq": 13, "codigo": "00030191", "cliente": "MERCEARIA DO LUIS"}, {"seq": 14, "codigo": "00030081", "cliente": "DIST DO CHICAO"}, {"seq": 15, "codigo": "00030032", "cliente": "ADEGA BELARMINO   02"}, {"seq": 16, "codigo": "00030205", "cliente": "ADEGA BELARMINO"}, {"seq": 17, "codigo": "00030088", "cliente": "DEPOSITO DO TIAO"}, {"seq": 18, "codigo": "00030058", "cliente": "COMERCIAL MESSIAS 01"}, {"seq": 19, "codigo": "00030140", "cliente": "ADEGA DO LOBINHO"}, {"seq": 20, "codigo": "00030092", "cliente": "ADEGA DO GIL"}, {"seq": 21, "codigo": "00030177", "cliente": "ADEGA BOCAO"}, {"seq": 22, "codigo": "00030045", "cliente": "BAR NO GRAU"}, {"seq": 23, "codigo": "00030190", "cliente": "LAVA JATO DO NEGAO"}, {"seq": 24, "codigo": "00030103", "cliente": "REI DO GELO"}, {"seq": 25, "codigo": "00030137", "cliente": "ACOUGUE DO LUIZAO"}, {"seq": 26, "codigo": "00030184", "cliente": "HORA A+"}, {"seq": 27, "codigo": "00030147", "cliente": "MERCEARIA AVENIDA"}, {"seq": 28, "codigo": "00030214", "cliente": "SUPERMECADO LEAO"}, {"seq": 29, "codigo": "00030213", "cliente": "ATACAREJO TOCANTINS"}, {"seq": 30, "codigo": "00030211", "cliente": "DISTRIBUIDORA ARAUJO"}, {"seq": 31, "codigo": "00030183", "cliente": "ESPETINHO DA ESQUINA"}, {"seq": 32, "codigo": "00030002", "cliente": "BAR DO ARNALDO"}, {"seq": 33, "codigo": "00030189", "cliente": "ADEGA DA EDNA"}, {"seq": 34, "codigo": "00030063", "cliente": "MERCADINHO DA ESQUIN"}, {"seq": 35, "codigo": "00030209", "cliente": "LUIS EDUARDO LIMA ME"}, {"seq": 36, "codigo": "00030153", "cliente": "DAVID ADEGA"}, {"seq": 37, "codigo": "00030037", "cliente": "BAR DA MAGNOLIA   01"}, {"seq": 38, "codigo": "00030009", "cliente": "GESSICA LANCHES"}, {"seq": 39, "codigo": "00030076", "cliente": "SUP. MARISILVA"}, {"seq": 40, "codigo": "00030064", "cliente": "LANCHE DO BAIXINHO"}, {"seq": 41, "codigo": "00030178", "cliente": "ADEGA QUERO MAIS  02"}, {"seq": 42, "codigo": "00030053", "cliente": "ESPORTE BAR       01"}, {"seq": 43, "codigo": "00030047", "cliente": "PEDRO VERDURA"}, {"seq": 44, "codigo": "00030008", "cliente": "BAR DO FRANCISCO  04"}, {"seq": 45, "codigo": "00030195", "cliente": "BAR DO DELUBIO"}, {"seq": 46, "codigo": "00030071", "cliente": "ADEGA MACEDO"}, {"seq": 47, "codigo": "00030107", "cliente": "MERC ESTRELA GUIA"}, {"seq": 48, "codigo": "00030093", "cliente": "ADEGA DA LOURINHA"}, {"seq": 49, "codigo": "00030090", "cliente": "ADEGA PISA NO FREIO"}, {"seq": 50, "codigo": "00030016", "cliente": "MERC CANA BRAVA"}, {"seq": 51, "codigo": "00030111", "cliente": "ADEGA SAIDEIRA    01"}, {"seq": 52, "codigo": "00030070", "cliente": "SUPER PAGUE MENOS"}, {"seq": 53, "codigo": "00030125", "cliente": "ADEGA PAI E FILHO 01"}, {"seq": 54, "codigo": "00030013", "cliente": "COMERCIO BOA VISTA 2"}, {"seq": 55, "codigo": "00030084", "cliente": "CAPILE"}, {"seq": 56, "codigo": "00030141", "cliente": "BAR DA EUNICE     01"}, {"seq": 57, "codigo": "00030179", "cliente": "ADEGA D6"}, {"seq": 58, "codigo": "00030091", "cliente": "MERCEARIA SARAIVA"}, {"seq": 59, "codigo": "00030210", "cliente": "BAR DA ELIANE"}, {"seq": 60, "codigo": "00030043", "cliente": "BAR DO PEDRAO"}, {"seq": 61, "codigo": "00030204", "cliente": "RESTAURANTE DA DETA"}, {"seq": 62, "codigo": "00030044", "cliente": "BAR DO LEONTINO"}, {"seq": 63, "codigo": "00030180", "cliente": "ADEGA CHAMPIONS   01"}, {"seq": 64, "codigo": "00030041", "cliente": "MERCEARIA MIRANDA."}, {"seq": 65, "codigo": "00030089", "cliente": "ADEGA PREDILETTA"}, {"seq": 66, "codigo": "00030151", "cliente": "MINI MERCADO COBRA"}, {"seq": 67, "codigo": "00030085", "cliente": "MERCEARIA RODRIGUE02"}, {"seq": 68, "codigo": "00030062", "cliente": "BAR DO ALFREDO"}, {"seq": 69, "codigo": "00030192", "cliente": "RESTAURANTE VITORIA"}, {"seq": 70, "codigo": "00030136", "cliente": "MIX ALTO BONITO"}, {"seq": 71, "codigo": "00030201", "cliente": "BAU DA FELICIDADE"}, {"seq": 72, "codigo": "00030005", "cliente": "CASA DO ESPETINHO"}, {"seq": 73, "codigo": "00030087", "cliente": "CASA DE CARNE JR"}, {"seq": 74, "codigo": "00030038", "cliente": "W.R.D LANCHE"}, {"seq": 75, "codigo": "00030188", "cliente": "CAVERNAS DOCETERIA"}, {"seq": 76, "codigo": "00030057", "cliente": "CARECA BAR E RESTAUR"}, {"seq": 77, "codigo": "00030060", "cliente": "CASA BEIRA RIO"}, {"seq": 78, "codigo": "00030011", "cliente": "BAR PINGO DE OURO 01"}, {"seq": 79, "codigo": "00030169", "cliente": "PESCARIA BEIRA RIO"}, {"seq": 80, "codigo": "00030072", "cliente": "BUTEKO DA DIVINA"}, {"seq": 81, "codigo": "00030034", "cliente": "BAR DO LUIZ       00"}, {"seq": 82, "codigo": "00030110", "cliente": "BAR DO FLAVIANO"}, {"seq": 83, "codigo": "00030080", "cliente": "MERCADINHO CANAA  01"}, {"seq": 84, "codigo": "00030014", "cliente": "BAR DO LOURO"}, {"seq": 85, "codigo": "00030113", "cliente": "ADEGA SANCLAY"}, {"seq": 86, "codigo": "00030042", "cliente": "COMERCIAL BOA VIST02"}, {"seq": 87, "codigo": "00030010", "cliente": "CHURASCARIA DO BIRA"}, {"seq": 88, "codigo": "00030099", "cliente": "BAR DO MORENO"}, {"seq": 89, "codigo": "00030028", "cliente": "BUCHO DE COBRA"}, {"seq": 90, "codigo": "00030065", "cliente": "COMERCIAL PARANBU"}, {"seq": 91, "codigo": "00030155", "cliente": "BAR DO RIBEIRAOZINHO"}, {"seq": 92, "codigo": "00030033", "cliente": "BAR DA LORA       00"}, {"seq": 93, "codigo": "00030208", "cliente": "ITALOS BAR"}, {"seq": 94, "codigo": "00030127", "cliente": "BAR DO DILSON     01"}, {"seq": 95, "codigo": "00030029", "cliente": "BALNEARIO PEDRO BENT"}, {"seq": 96, "codigo": "00030175", "cliente": "BIROSCA DA ISABEL"}, {"seq": 97, "codigo": "00030012", "cliente": "BALNEARIO CAI N AGUA"}, {"seq": 98, "codigo": "00030026", "cliente": "BALNEARIO DO JULIO"}, {"seq": 99, "codigo": "00030199", "cliente": "BAR DO TIAGO"}]}, {"id": "RT001005", "rotulo": "Veiculo - Motorista 720", "veiculo": null, "motorista_numero": "720", "paradas": [{"seq": 1, "codigo": "50025275", "cliente": "01120016       REST PRATO CHEIO"}, {"seq": 2, "codigo": "50025275", "cliente": "01120023       ADEGA WELIGTON"}, {"seq": 3, "codigo": "50025275", "cliente": "01120037       ADEGA J O"}, {"seq": 4, "codigo": "50025275", "cliente": "01120018       BAR CRISTAL"}, {"seq": 5, "codigo": "50025275", "cliente": "01120011       ACOUGUE E ADEG AMIGO"}, {"seq": 6, "codigo": "50025275", "cliente": "01120027       MERCADINHO DA IRIS"}, {"seq": 7, "codigo": "50025275", "cliente": "01120019       RF ADEGA"}, {"seq": 8, "codigo": "50025275", "cliente": "01120015       REST. BOM SABOR"}, {"seq": 9, "codigo": "50025275", "cliente": "01120012       ADEGA 01"}, {"seq": 10, "codigo": "50025275", "cliente": "01150202       RANCHO BOUGAVILLE"}, {"seq": 11, "codigo": "50025275", "cliente": "01150234       BAR DO CEARA      02"}, {"seq": 12, "codigo": "50025275", "cliente": "01150221       REST CHAPEU DE PAL01"}, {"seq": 13, "codigo": "50025275", "cliente": "01150023       COMER MARTINS"}, {"seq": 14, "codigo": "50025275", "cliente": "01150246       RANCHO GRANDE"}, {"seq": 15, "codigo": "50025275", "cliente": "01150092       ADEGA DO MIVANILSON"}, {"seq": 16, "codigo": "50025275", "cliente": "01150173       BAR SORRISO NOITE"}, {"seq": 17, "codigo": "50025275", "cliente": "01150203       MERCEARIA CENTRAL"}, {"seq": 18, "codigo": "50025275", "cliente": "01150008       MERC DA FRANCISCA"}, {"seq": 19, "codigo": "50025275", "cliente": "01150041       BAR GILBERTO"}, {"seq": 20, "codigo": "50025275", "cliente": "01150021       MERCE VILA OPERARIA"}, {"seq": 21, "codigo": "50025275", "cliente": "01150241       BAR DO ROBERTO    01"}, {"seq": 22, "codigo": "50025275", "cliente": "01150053       BAR DO GANBANHA"}, {"seq": 23, "codigo": "50025275", "cliente": "01150044       BAR DA SANTANA"}, {"seq": 24, "codigo": "50025275", "cliente": "01150228       PIRAMIDE DISTRIBUID"}, {"seq": 25, "codigo": "50025275", "cliente": "01150020       MERCE E ADEGA BRASIL"}, {"seq": 26, "codigo": "50025275", "cliente": "01150038       BAR DA GALEGA"}, {"seq": 27, "codigo": "50025275", "cliente": "01150114       MINI MER ACOU ALTO B"}, {"seq": 28, "codigo": "50025275", "cliente": "01150104       LESTE LANCHE"}, {"seq": 29, "codigo": "50025275", "cliente": "01150211       ADEGA DA NAIR"}, {"seq": 30, "codigo": "50025275", "cliente": "01150233       XAMBIOA COM BER E RE"}, {"seq": 31, "codigo": "50025275", "cliente": "01150006       MER ACOUGUE CARVALHO"}, {"seq": 32, "codigo": "50025275", "cliente": "01150217       ADEGA DA ONCA     01"}, {"seq": 33, "codigo": "50025275", "cliente": "01150196       BAR DO MIGUEL"}, {"seq": 34, "codigo": "50025275", "cliente": "01150209       ADEGA DO EDU"}, {"seq": 35, "codigo": "50025275", "cliente": "01150024       CASA DO CAMPO"}, {"seq": 36, "codigo": "50025275", "cliente": "01150094       ADEGA E SUP MOREIRA"}, {"seq": 37, "codigo": "50025275", "cliente": "01150251       CINUCAO BAR"}, {"seq": 38, "codigo": "50025275", "cliente": "01150208       ESQUINA DA CERVEJA"}, {"seq": 39, "codigo": "50025275", "cliente": "01150071       MUVUCA LANCHE BAR"}, {"seq": 40, "codigo": "50025275", "cliente": "01150242       BAR DO PESCADOR"}, {"seq": 41, "codigo": "50025275", "cliente": "01150125       REST PEIX DA PRETA"}, {"seq": 42, "codigo": "50025275", "cliente": "01150022       MERCE BARROS"}, {"seq": 43, "codigo": "50025275", "cliente": "01150207       MINE BOX 3 IRMAOS"}, {"seq": 44, "codigo": "50025275", "cliente": "01150230       LATADA BAR"}, {"seq": 45, "codigo": "50025275", "cliente": "01150172       BAR BEM GELADO"}, {"seq": 46, "codigo": "50025275", "cliente": "01150083       BAR DA FELICIDADE 01"}, {"seq": 47, "codigo": "50025275", "cliente": "01150201       BAR DA BAIANA"}, {"seq": 48, "codigo": "50025275", "cliente": "01150213       CLUB DOS AMIGOS"}, {"seq": 49, "codigo": "50025275", "cliente": "01150140       BAR PORTO DA BALSA"}, {"seq": 50, "codigo": "50025275", "cliente": "01150249       ROTA DE AMIGOS"}, {"seq": 51, "codigo": "50025275", "cliente": "01150128       BAR DAS PULGAS"}]}, {"id": "RT001006", "rotulo": "Veiculo - Motorista 726", "veiculo": null, "motorista_numero": "726", "paradas": [{"seq": 1, "codigo": "24001629", "cliente": "01000232       ADEGA MILHOMEM"}, {"seq": 2, "codigo": "24001629", "cliente": "01002059       ADEGAO WF         01"}, {"seq": 3, "codigo": "24001629", "cliente": "01000805       SUL BEBIDAS"}, {"seq": 4, "codigo": "24001629", "cliente": "01000139       ADEGA DO GIL      01"}, {"seq": 5, "codigo": "24001629", "cliente": "01000160       MERCA DO MINEIRO"}, {"seq": 6, "codigo": "24001629", "cliente": "01000464       BAR DA JOANA 01"}, {"seq": 7, "codigo": "24001629", "cliente": "01000612       POINT DO MUIDO"}, {"seq": 8, "codigo": "24001629", "cliente": "01000012       MERC E BAR LUNA"}, {"seq": 9, "codigo": "24001629", "cliente": "01002569       ADEGA ABURQUEQUE"}, {"seq": 10, "codigo": "24001629", "cliente": "01000776       JV LIMA"}, {"seq": 11, "codigo": "24001629", "cliente": "01000432       FRANCIS BAR 01"}, {"seq": 12, "codigo": "24001629", "cliente": "01000249       ADEGA DO CESAR"}, {"seq": 13, "codigo": "24001629", "cliente": "01000005       MERC E BAR DEUSELIR"}, {"seq": 14, "codigo": "24001629", "cliente": "01000784       ADEGA NASCIMENTO 01"}, {"seq": 15, "codigo": "24001629", "cliente": "01002854       DISTRIBUIDORA TH"}, {"seq": 16, "codigo": "24001629", "cliente": "01001277       MERCADINHO DO AVACY"}, {"seq": 17, "codigo": "24001629", "cliente": "01000592       BAR E ADEGA CORRO"}, {"seq": 18, "codigo": "24001629", "cliente": "01002919       ADEGA DO PROF     01"}, {"seq": 19, "codigo": "24001629", "cliente": "01001662       ADEGA.COM"}, {"seq": 20, "codigo": "24001629", "cliente": "01000148       COMER AMORIM"}, {"seq": 21, "codigo": "24001629", "cliente": "01000034       BAR DO FILO"}, {"seq": 22, "codigo": "24001629", "cliente": "01001947       ACOUGUE POPULAR"}, {"seq": 23, "codigo": "24001629", "cliente": "01002708       ARROZ SEPARADO BAR"}, {"seq": 24, "codigo": "24001629", "cliente": "01000428       SKINAO"}, {"seq": 25, "codigo": "24001629", "cliente": "01002556       MANGABAS BAR"}, {"seq": 26, "codigo": "24001629", "cliente": "01000047       MERCADINHO LALA"}, {"seq": 27, "codigo": "24001629", "cliente": "01002977       ADEGA TESCO"}, {"seq": 28, "codigo": "24001629", "cliente": "01002581       BAR DO ZEZINHO    01"}, {"seq": 29, "codigo": "24001629", "cliente": "01000107       MERCADINHO DO LUIZ"}, {"seq": 30, "codigo": "24001629", "cliente": "01002252       ARENA SAO JORGE"}]}, {"id": "RT001007", "rotulo": "Veiculo - Motorista 730", "veiculo": null, "motorista_numero": "730", "paradas": [{"seq": 1, "codigo": "24005030", "cliente": "01000032       SACOLAO GLOBO"}, {"seq": 2, "codigo": "24005030", "cliente": "01002768       ACOUGUE CANAA"}, {"seq": 3, "codigo": "24005030", "cliente": "01002597       R S BEBIDAS"}, {"seq": 4, "codigo": "24005030", "cliente": "01000745       BH BEBIDAS"}, {"seq": 5, "codigo": "24005030", "cliente": "01000154       CASA DE CARNE SOARES"}, {"seq": 6, "codigo": "24005030", "cliente": "01000555       BAR DO SABINO"}, {"seq": 7, "codigo": "24005030", "cliente": "01002109       SABORES DE MEL"}, {"seq": 8, "codigo": "24005030", "cliente": "01002833       ADEGA E BAR PURA DOS"}, {"seq": 9, "codigo": "24005030", "cliente": "01000271       A BELLA TRATORIA"}, {"seq": 10, "codigo": "24005030", "cliente": "01000822       PRIME HOOKAH"}, {"seq": 11, "codigo": "24005030", "cliente": "01000114       COMERCIAL SAO JOAO"}, {"seq": 12, "codigo": "24005030", "cliente": "01002912       BAR DO NEGAO      01"}, {"seq": 13, "codigo": "24005030", "cliente": "01002343       COMERCIAL DCA"}, {"seq": 14, "codigo": "24005030", "cliente": "01000173       ADEGA DO ERNANDE"}, {"seq": 15, "codigo": "24005030", "cliente": "01000170       BAR QUARTA FEIRA"}, {"seq": 16, "codigo": "24005030", "cliente": "01000774       MAGRO BEBIDA"}, {"seq": 17, "codigo": "24005030", "cliente": "01000113       SUPER BOX CHEIRO VER"}, {"seq": 18, "codigo": "24005030", "cliente": "01000058       SUPER MARQUES"}, {"seq": 19, "codigo": "24005030", "cliente": "01001126       QUINTAL DO ESPETO"}, {"seq": 20, "codigo": "24005030", "cliente": "01002830       TIME SQUARE ADEGA 01"}, {"seq": 21, "codigo": "24005030", "cliente": "01002968       JACARE"}, {"seq": 22, "codigo": "24005030", "cliente": "01000607       O REI DA CARNE SOL"}, {"seq": 23, "codigo": "24005030", "cliente": "01001375       BAR DA MARIA"}, {"seq": 24, "codigo": "24005030", "cliente": "01000609       BAR JL"}, {"seq": 25, "codigo": "24005030", "cliente": "01000520       BAR DO ALTENO"}, {"seq": 26, "codigo": "24005030", "cliente": "01002428       MAISKTOP"}, {"seq": 27, "codigo": "24005030", "cliente": "01000565       CASA DA PINGA"}, {"seq": 28, "codigo": "24005030", "cliente": "01002584       BAR DO GIVANILDO"}, {"seq": 29, "codigo": "24005030", "cliente": "01002656       PINDOBAS BAR"}, {"seq": 30, "codigo": "24005030", "cliente": "01001331       REAL BEER"}, {"seq": 31, "codigo": "24005030", "cliente": "01001695       BATUQUE BAR       00"}, {"seq": 32, "codigo": "24005030", "cliente": "01002720       RESTAURANT DA MARIZA"}, {"seq": 33, "codigo": "24005030", "cliente": "01000630       BAR DO ORLANDO"}, {"seq": 34, "codigo": "24005030", "cliente": "01000506       BAR OURO VERDE"}]}, {"id": "RT001008", "rotulo": "Veiculo - Motorista 728", "veiculo": null, "motorista_numero": "728", "paradas": [{"seq": 1, "codigo": "23001127", "cliente": "01003002       C/ DE CARNE ALVORADA"}, {"seq": 2, "codigo": "23001127", "cliente": "01002855       AVENUER BAR"}, {"seq": 3, "codigo": "23001127", "cliente": "01001074       VIA FILADELFIA"}, {"seq": 4, "codigo": "23001127", "cliente": "01000425       1 OPCAO BAR E COZINH"}, {"seq": 5, "codigo": "23001127", "cliente": "01000971       COMER MAIA"}, {"seq": 6, "codigo": "23001127", "cliente": "01000546       ESPETINHO ALEX"}, {"seq": 7, "codigo": "23001127", "cliente": "01002514       SUPER CARNES MARCI01"}, {"seq": 8, "codigo": "23001127", "cliente": "01002809       MERCATTO 703"}, {"seq": 9, "codigo": "23001127", "cliente": "01000517       BAR DA JOANINHA"}, {"seq": 10, "codigo": "23001127", "cliente": "01002805       WISKYTORIO BAR 2"}, {"seq": 11, "codigo": "23001127", "cliente": "01001660       BAR DO VO         01"}, {"seq": 12, "codigo": "23001127", "cliente": "01000757       CONVENIENCIA UFC"}, {"seq": 13, "codigo": "23001127", "cliente": "01002892       CONVENIENCIA 1"}, {"seq": 14, "codigo": "23001127", "cliente": "01002275       ADEGA DU PREFERIDO"}, {"seq": 15, "codigo": "23001127", "cliente": "01000583       BAR DO BOZOGA"}, {"seq": 16, "codigo": "23001127", "cliente": "01002474       SABOR DA PICANHA  01"}, {"seq": 17, "codigo": "23001127", "cliente": "01000263       BAROLI FAST FOOD"}, {"seq": 18, "codigo": "23001127", "cliente": "01002686       BAR DO CAPITAO"}]}];
 const adminMsgEl = document.getElementById('adminMsg');
 
 let db = null;
@@ -154,6 +186,146 @@ function montarLinha(numero) {
       .catch(err => { mensagem('Erro ao salvar a senha do motorista ' + numero + '.', true); console.error(err); });
   });
   return linha;
+}
+
+// --- ajuste manual de rotas (motorista, veiculo, ordem, exclusao) ------
+
+function montarCardAjuste(rota) {
+  const card = document.createElement('details');
+  card.className = 'ajuste-rota';
+  card.innerHTML =
+    '<summary>' + rota.rotulo + ' <small>(' + rota.paradas.length + ' paradas)</small></summary>' +
+    '<div class="ajuste-campos">' +
+      '<div class="ajuste-campo">' +
+        '<label for="ajusteMotorista-' + rota.id + '">Motorista</label>' +
+        '<select id="ajusteMotorista-' + rota.id + '"></select>' +
+      '</div>' +
+      '<div class="ajuste-campo">' +
+        '<label for="ajusteVeiculo-' + rota.id + '">Veiculo (placa)</label>' +
+        '<input type="text" id="ajusteVeiculo-' + rota.id + '" placeholder="' + (rota.veiculo || 'sem veiculo') + '">' +
+      '</div>' +
+    '</div>' +
+    '<div class="ajuste-paradas" id="ajusteParadas-' + rota.id + '"></div>' +
+    '<div class="ajuste-botoes">' +
+      '<button class="btn-salvar">Salvar ajustes</button>' +
+      '<button class="btn-limpar">Limpar ajustes (voltar ao original)</button>' +
+    '</div>' +
+    '<div class="ajuste-status" id="ajusteStatus-' + rota.id + '"></div>';
+
+  const selMotorista = card.querySelector('#ajusteMotorista-' + rota.id);
+  const optManter = document.createElement('option');
+  optManter.value = '';
+  optManter.textContent = 'Manter original (' + (rota.motorista_numero || 'sem motorista') + ')';
+  selMotorista.appendChild(optManter);
+  for (let n = NUMERO_MIN; n <= NUMERO_MAX; n++) {
+    const opt = document.createElement('option');
+    opt.value = String(n);
+    opt.textContent = String(n);
+    selMotorista.appendChild(opt);
+  }
+
+  const paradasEl = card.querySelector('#ajusteParadas-' + rota.id);
+  rota.paradas.forEach(p => {
+    const linha = document.createElement('div');
+    linha.className = 'ajuste-parada';
+    linha.dataset.codigo = p.codigo;
+    linha.innerHTML =
+      '<input type="number" class="ap-pos" value="' + p.seq + '">' +
+      '<span class="ap-nome">' + p.seq + '. ' + p.cliente + ' <small>(' + p.codigo + ')</small></span>' +
+      '<label><input type="checkbox" class="ap-excluir"> excluir</label>';
+    linha.querySelector('.ap-excluir').addEventListener('change', ev => {
+      linha.classList.toggle('ap-excluida', ev.target.checked);
+    });
+    paradasEl.appendChild(linha);
+  });
+
+  card.querySelector('.btn-salvar').addEventListener('click', () => salvarAjuste(rota));
+  card.querySelector('.btn-limpar').addEventListener('click', () => limparAjuste(rota));
+
+  return card;
+}
+
+function salvarAjuste(rota) {
+  const statusEl = document.getElementById('ajusteStatus-' + rota.id);
+  const motoristaEl = document.getElementById('ajusteMotorista-' + rota.id);
+  const veiculoEl = document.getElementById('ajusteVeiculo-' + rota.id);
+  const linhas = Array.from(document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada'));
+
+  const removidos = [];
+  const comPosicao = [];
+  linhas.forEach((linha, i) => {
+    const codigo = linha.dataset.codigo;
+    if (linha.querySelector('.ap-excluir').checked) { removidos.push(codigo); return; }
+    const pos = parseFloat(linha.querySelector('.ap-pos').value);
+    comPosicao.push({ codigo: codigo, pos: isNaN(pos) ? i : pos, i: i });
+  });
+  comPosicao.sort((a, b) => (a.pos - b.pos) || (a.i - b.i));
+  const ordem = comPosicao.map(x => x.codigo);
+
+  const doc = {
+    data: DATA_ISO,
+    rota_id: rota.id,
+    motorista_numero: motoristaEl.value || null,
+    veiculo: veiculoEl.value.trim() || null,
+    removidos: removidos,
+    ordem: ordem,
+    atualizado_em: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  statusEl.textContent = 'Salvando...';
+  statusEl.style.color = '';
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + rota.id).set(doc)
+    .then(() => { statusEl.textContent = 'Ajustes salvos.'; statusEl.style.color = '#1e7e34'; })
+    .catch(err => { statusEl.textContent = 'Erro ao salvar os ajustes.'; statusEl.style.color = '#c00000'; console.error(err); });
+}
+
+function limparAjuste(rota) {
+  const statusEl = document.getElementById('ajusteStatus-' + rota.id);
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + rota.id).delete()
+    .then(() => {
+      statusEl.textContent = 'Ajustes removidos, rota voltou ao original do PathFind.';
+      statusEl.style.color = '#1e7e34';
+      document.getElementById('ajusteMotorista-' + rota.id).value = '';
+      document.getElementById('ajusteVeiculo-' + rota.id).value = '';
+      document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada').forEach((linha, i) => {
+        linha.querySelector('.ap-excluir').checked = false;
+        linha.classList.remove('ap-excluida');
+        linha.querySelector('.ap-pos').value = i + 1;
+      });
+    })
+    .catch(err => { statusEl.textContent = 'Erro ao limpar os ajustes.'; statusEl.style.color = '#c00000'; console.error(err); });
+}
+
+function carregarAjustes() {
+  const listaEl = document.getElementById('listaAjustes');
+  listaEl.innerHTML = '';
+  if (!ROTAS_HOJE.length) {
+    listaEl.innerHTML = '<p style="text-align:center; font-size:0.8rem; color:#888;">Nenhuma rota gerada ainda hoje.</p>';
+    return;
+  }
+  ROTAS_HOJE.forEach(rota => {
+    const card = montarCardAjuste(rota);
+    listaEl.appendChild(card);
+    db.collection('ajustes_rotas').doc(DATA_ISO + '_' + rota.id).get().then(doc => {
+      if (!doc.exists) return;
+      const d = doc.data();
+      if (d.motorista_numero) document.getElementById('ajusteMotorista-' + rota.id).value = d.motorista_numero;
+      if (d.veiculo) document.getElementById('ajusteVeiculo-' + rota.id).value = d.veiculo;
+      const removidos = new Set(d.removidos || []);
+      const posicao = new Map((d.ordem || []).map((c, i) => [c, i]));
+      document.querySelectorAll('#ajusteParadas-' + rota.id + ' .ajuste-parada').forEach(linha => {
+        const codigo = linha.dataset.codigo;
+        if (removidos.has(codigo)) {
+          linha.querySelector('.ap-excluir').checked = true;
+          linha.classList.add('ap-excluida');
+        }
+        if (posicao.has(codigo)) {
+          linha.querySelector('.ap-pos').value = posicao.get(codigo) + 1;
+        }
+      });
+      card.open = true;
+      card.querySelector('summary').insertAdjacentHTML('beforeend', ' <span class="tag-ajustada">ajustada</span>');
+    }).catch(err => console.error('Falha ao carregar ajuste existente:', err));
+  });
 }
 
 function carregarMotoristas() {
@@ -198,6 +370,7 @@ document.getElementById('btnSalvarAdmin').addEventListener('click', () => {
 if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {
   document.body.classList.remove('bloqueado');
   carregarMotoristas();
+  carregarAjustes();
 } else {
   document.getElementById('formSenhaAdmin').addEventListener('submit', ev => {
     ev.preventDefault();
@@ -213,6 +386,7 @@ if (sessionStorage.getItem('painel_desbloqueado') === 'sim') {
         sessionStorage.setItem('painel_desbloqueado', 'sim');
         document.body.classList.remove('bloqueado');
         carregarMotoristas();
+        carregarAjustes();
       } else {
         erroEl.textContent = 'Senha incorreta.';
       }
