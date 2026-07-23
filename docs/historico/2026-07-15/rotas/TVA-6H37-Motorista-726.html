@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>TVA-6H37 - Motorista 726</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:09</div>
+  <div class="sub">Atualizado em 22/07/2026 22:22</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01002978", "cliente": "AGROBEER BAR E RESTA", "endereco": "RUA RUA P QD26 LT04 S/NSETOR OESTEARAGUAINATO - SETOR OESTE - ARAGUAINA/TO - CEP 77800000", "lat": -7.208405, "lon": -48.235908, "dist_anterior_km": 3.0278, "dist_proxima_km": 2.559}, {"seq": 2, "codigo": "01002855", "cliente": "AVENUER BAR", "endereco": "AV FILADELFIA, 3106JARDIM FILADELFIAARAGUAINATO - JARDIM FILADELFIA - ARAGUAINA/TO - CEP 77813410", "lat": -7.20195, "lon": -48.214103, "dist_anterior_km": 2.559, "dist_proxima_km": 0.6628999999999999}, {"seq": 3, "codigo": "01001074", "cliente": "VIA FILADELFIA", "endereco": "AV FILADELFIA, 3287 -00703DONA NELCIAARAGUAINATO - DONA NELCIA - ARAGUAINA/TO - CEP 77813410", "lat": -7.201903, "lon": -48.212667, "dist_anterior_km": 0.6628999999999999, "dist_proxima_km": 1.0691}, {"seq": 4, "codigo": "01000546", "cliente": "ESPETINHO ALEX", "endereco": "RUA SADOC CORREIA, 576 -00550CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77803060", "lat": -7.19578, "lon": -48.209788, "dist_anterior_km": 1.0691, "dist_proxima_km": 0.5363}, {"seq": 5, "codigo": "01002809", "cliente": "MERCATTO 703", "endereco": "RUA ADEMAR VICENTE FERREIRA, 2151BAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77803040", "lat": -7.197503, "lon": -48.211823, "dist_anterior_km": 0.5363, "dist_proxima_km": 0.5321}, {"seq": 6, "codigo": "01000517", "cliente": "BAR DA JOANINHA", "endereco": "RUA DOS PARANAIBA, 879CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804180", "lat": -7.19523, "lon": -48.21242, "dist_anterior_km": 0.5321, "dist_proxima_km": 0.6748}, {"seq": 7, "codigo": "01002622", "cliente": "SUPER FEIRAO ECONON", "endereco": "RUA TREZE DE MAIO, 996CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77803130", "lat": -7.192296, "lon": -48.213035, "dist_anterior_km": 0.6748, "dist_proxima_km": 0.9913}, {"seq": 8, "codigo": "01000205", "cliente": "GENIANE LINO", "endereco": "AV BRASIL, 478 -00478SETOR BELO HORIZONTEARAGUAINATO - SETOR BELO HORIZONTE - ARAGUAINA/TO - CEP 77800000", "lat": -7.195357, "lon": -48.205726, "dist_anterior_km": 0.9913, "dist_proxima_km": 0.1313}, {"seq": 9, "codigo": "01002805", "cliente": "WISKYTORIO BAR 2", "endereco": "RUI BELO HORIZONTE QD72 LTD44 S/NSETOR BELO HORIZONTEARAGUAINATO - SETOR BELO HORIZONTE - ARAGUAINA/TO - CEP 77500000", "lat": -7.196518, "lon": -48.205233, "dist_anterior_km": 0.1313, "dist_proxima_km": 0.1763}, {"seq": 10, "codigo": "01002776", "cliente": "O ALIBI BAR E ARTE", "endereco": "RUA GETULIO VARGAS, 275BAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77813505", "lat": -7.197036, "lon": -48.204211, "dist_anterior_km": 0.1763, "dist_proxima_km": 0.26480000000000004}, {"seq": 11, "codigo": "01002959", "cliente": "EMPORIO URUZ", "endereco": "AV EMANOEL S/NBAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77813520", "lat": -7.197208, "lon": -48.206515, "dist_anterior_km": 0.26480000000000004, "dist_proxima_km": 0.6769}, {"seq": 12, "codigo": "01001297", "cliente": "JKA LANCHE", "endereco": "RUA 001 S/NVILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813770", "lat": -7.202404, "lon": -48.205373, "dist_anterior_km": 0.6769, "dist_proxima_km": 0.0503}, {"seq": 13, "codigo": "01002304", "cliente": "IMPERIO BEER", "endereco": "RUA 001, 8 -Q 2 LT 04VILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813770", "lat": -7.202614, "lon": -48.205211, "dist_anterior_km": 0.0503, "dist_proxima_km": 0.45030000000000003}, {"seq": 14, "codigo": "01002474", "cliente": "SABOR DA PICANHA  01", "endereco": "RUA 005, 116VILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813745", "lat": -7.201611, "lon": -48.20325, "dist_anterior_km": 0.45030000000000003, "dist_proxima_km": 0.24480000000000002}, {"seq": 15, "codigo": "01001296", "cliente": "FULL TIME", "endereco": "RUA PREFEITO JOAO DE SOUSA LIMA, 934BAIRRO SAO JOAOARAGUAINATO - BAIRRO SAO JOAO - ARAGUAINA/TO - CEP 07807160", "lat": -7.201612, "lon": -48.201659, "dist_anterior_km": 0.24480000000000002, "dist_proxima_km": 1.4638}, {"seq": 16, "codigo": "01002892", "cliente": "CONVENIENCIA 1", "endereco": "AV CASTELO BRANCO01, 316SETOR CENTRALARAGUAINATO - SETOR CENTRAL - ARAGUAINA/TO - CEP 77805110", "lat": -7.19144, "lon": -48.204358, "dist_anterior_km": 1.4638, "dist_proxima_km": 0.4613}, {"seq": 17, "codigo": "01000722", "cliente": "BAR DO PELE", "endereco": "RUA QUINZE DE NOVEMBRO, 355 -00596CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804100", "lat": -7.18897, "lon": -48.206067, "dist_anterior_km": 0.4613, "dist_proxima_km": 0.231}, {"seq": 18, "codigo": "01000583", "cliente": "BAR DO BOZOGA", "endereco": "RUA 7 DE SETEMBRO SN S/N -00566CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77825040", "lat": -7.189802, "lon": -48.206293, "dist_anterior_km": 0.231, "dist_proxima_km": 0.503}, {"seq": 19, "codigo": "01002178", "cliente": "ESQUINA 21        01", "endereco": "RUA ADEMAR VICENTE FERREIRA1, 376CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804120", "lat": -7.188158, "lon": -48.208918, "dist_anterior_km": 0.503, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01002978", "pedido": "0275", "cliente": "AGROBEER BAR E RESTA", "endereco": "RUA RUA P QD26 LT04 S/NSETOR OESTEARAGUAINATO - SETOR OESTE - ARAGUAINA/TO - CEP 77800000", "lat": -7.208405, "lon": -48.235908, "dist_anterior_km": 3.0278, "dist_proxima_km": 2.559}, {"seq": 2, "codigo": "01002855", "pedido": "0234", "cliente": "AVENUER BAR", "endereco": "AV FILADELFIA, 3106JARDIM FILADELFIAARAGUAINATO - JARDIM FILADELFIA - ARAGUAINA/TO - CEP 77813410", "lat": -7.20195, "lon": -48.214103, "dist_anterior_km": 2.559, "dist_proxima_km": 0.6628999999999999}, {"seq": 3, "codigo": "01001074", "pedido": "0237", "cliente": "VIA FILADELFIA", "endereco": "AV FILADELFIA, 3287 -00703DONA NELCIAARAGUAINATO - DONA NELCIA - ARAGUAINA/TO - CEP 77813410", "lat": -7.201903, "lon": -48.212667, "dist_anterior_km": 0.6628999999999999, "dist_proxima_km": 1.0691}, {"seq": 4, "codigo": "01000546", "pedido": "0242", "cliente": "ESPETINHO ALEX", "endereco": "RUA SADOC CORREIA, 576 -00550CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77803060", "lat": -7.19578, "lon": -48.209788, "dist_anterior_km": 1.0691, "dist_proxima_km": 0.5363}, {"seq": 5, "codigo": "01002809", "pedido": "0235", "cliente": "MERCATTO 703", "endereco": "RUA ADEMAR VICENTE FERREIRA, 2151BAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77803040", "lat": -7.197503, "lon": -48.211823, "dist_anterior_km": 0.5363, "dist_proxima_km": 0.5321}, {"seq": 6, "codigo": "01000517", "pedido": "0085", "cliente": "BAR DA JOANINHA", "endereco": "RUA DOS PARANAIBA, 879CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804180", "lat": -7.19523, "lon": -48.21242, "dist_anterior_km": 0.5321, "dist_proxima_km": 0.6748}, {"seq": 7, "codigo": "01002622", "pedido": "0243", "cliente": "SUPER FEIRAO ECONON", "endereco": "RUA TREZE DE MAIO, 996CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77803130", "lat": -7.192296, "lon": -48.213035, "dist_anterior_km": 0.6748, "dist_proxima_km": 0.9913}, {"seq": 8, "codigo": "01000205", "pedido": "0258", "cliente": "GENIANE LINO", "endereco": "AV BRASIL, 478 -00478SETOR BELO HORIZONTEARAGUAINATO - SETOR BELO HORIZONTE - ARAGUAINA/TO - CEP 77800000", "lat": -7.195357, "lon": -48.205726, "dist_anterior_km": 0.9913, "dist_proxima_km": 0.1313}, {"seq": 9, "codigo": "01002805", "pedido": "0244", "cliente": "WISKYTORIO BAR 2", "endereco": "RUI BELO HORIZONTE QD72 LTD44 S/NSETOR BELO HORIZONTEARAGUAINATO - SETOR BELO HORIZONTE - ARAGUAINA/TO - CEP 77500000", "lat": -7.196518, "lon": -48.205233, "dist_anterior_km": 0.1313, "dist_proxima_km": 0.1763}, {"seq": 10, "codigo": "01002776", "pedido": "0262", "cliente": "O ALIBI BAR E ARTE", "endereco": "RUA GETULIO VARGAS, 275BAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77813505", "lat": -7.197036, "lon": -48.204211, "dist_anterior_km": 0.1763, "dist_proxima_km": 0.26480000000000004}, {"seq": 11, "codigo": "01002959", "pedido": "0407", "cliente": "EMPORIO URUZ", "endereco": "AV EMANOEL S/NBAIRRO SENADORARAGUAINATO - BAIRRO SENADOR - ARAGUAINA/TO - CEP 77813520", "lat": -7.197208, "lon": -48.206515, "dist_anterior_km": 0.26480000000000004, "dist_proxima_km": 0.6769}, {"seq": 12, "codigo": "01001297", "pedido": "0238", "cliente": "JKA LANCHE", "endereco": "RUA 001 S/NVILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813770", "lat": -7.202404, "lon": -48.205373, "dist_anterior_km": 0.6769, "dist_proxima_km": 0.0503}, {"seq": 13, "codigo": "01002304", "pedido": "0240", "cliente": "IMPERIO BEER", "endereco": "RUA 001, 8 -Q 2 LT 04VILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813770", "lat": -7.202614, "lon": -48.205211, "dist_anterior_km": 0.0503, "dist_proxima_km": 0.45030000000000003}, {"seq": 14, "codigo": "01002474", "pedido": "0241", "cliente": "SABOR DA PICANHA  01", "endereco": "RUA 005, 116VILA ALIANCAARAGUAINATO - VILA ALIANCA - ARAGUAINA/TO - CEP 77813745", "lat": -7.201611, "lon": -48.20325, "dist_anterior_km": 0.45030000000000003, "dist_proxima_km": 0.24480000000000002}, {"seq": 15, "codigo": "01001296", "pedido": "0259", "cliente": "FULL TIME", "endereco": "RUA PREFEITO JOAO DE SOUSA LIMA, 934BAIRRO SAO JOAOARAGUAINATO - BAIRRO SAO JOAO - ARAGUAINA/TO - CEP 07807160", "lat": -7.201612, "lon": -48.201659, "dist_anterior_km": 0.24480000000000002, "dist_proxima_km": 1.4638}, {"seq": 16, "codigo": "01002892", "pedido": "0236", "cliente": "CONVENIENCIA 1", "endereco": "AV CASTELO BRANCO01, 316SETOR CENTRALARAGUAINATO - SETOR CENTRAL - ARAGUAINA/TO - CEP 77805110", "lat": -7.19144, "lon": -48.204358, "dist_anterior_km": 1.4638, "dist_proxima_km": 0.4613}, {"seq": 17, "codigo": "01000722", "pedido": "0123", "cliente": "BAR DO PELE", "endereco": "RUA QUINZE DE NOVEMBRO, 355 -00596CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804100", "lat": -7.18897, "lon": -48.206067, "dist_anterior_km": 0.4613, "dist_proxima_km": 0.231}, {"seq": 18, "codigo": "01000583", "pedido": "0233", "cliente": "BAR DO BOZOGA", "endereco": "RUA 7 DE SETEMBRO SN S/N -00566CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77825040", "lat": -7.189802, "lon": -48.206293, "dist_anterior_km": 0.231, "dist_proxima_km": 0.503}, {"seq": 19, "codigo": "01002178", "pedido": "0239", "cliente": "ESQUINA 21        01", "endereco": "RUA ADEMAR VICENTE FERREIRA1, 376CENTROARAGUAINATO - CENTRO - ARAGUAINA/TO - CEP 77804120", "lat": -7.188158, "lon": -48.208918, "dist_anterior_km": 0.503, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.214238, -48.244759], [-7.207152, -48.241101], [-7.207887, -48.239551], [-7.208339, -48.235907], [-7.20803, -48.233843], [-7.203712, -48.223746], [-7.201814, -48.215384], [-7.201818, -48.214088], [-7.202175, -48.210466], [-7.201899, -48.212666], [-7.201766, -48.213724], [-7.200305, -48.213274], [-7.200657, -48.211352], [-7.195743, -48.20991], [-7.195142, -48.209725], [-7.194754, -48.21103], [-7.197498, -48.21184], [-7.198275, -48.212076], [-7.197922, -48.213216], [-7.19523, -48.212418], [-7.194414, -48.212177], [-7.193732, -48.21448], [-7.191943, -48.213963], [-7.192224, -48.213013], [-7.193924, -48.207244], [-7.194958, -48.207599], [-7.195492, -48.205814], [-7.196544, -48.205297], [-7.197233, -48.205012], [-7.196684, -48.203543], [-7.197326, -48.203298], [-7.197633, -48.204054], [-7.197059, -48.204272], [-7.197381, -48.205408], [-7.197207, -48.206515], [-7.197156, -48.207407], [-7.202056, -48.207352], [-7.202158, -48.20542], [-7.2024, -48.205436], [-7.202624, -48.205211], [-7.202697, -48.203761], [-7.20105, -48.203683], [-7.20108, -48.203241], [-7.201609, -48.203275], [-7.20181, -48.203166], [-7.201247, -48.2018], [-7.201613, -48.201661], [-7.202428, -48.201317], [-7.193903, -48.204554], [-7.193746, -48.205066], [-7.191431, -48.204392], [-7.190857, -48.20424], [-7.190407, -48.206085], [-7.189198, -48.205703], [-7.189083, -48.2061], [-7.18891, -48.2067], [-7.189686, -48.206939], [-7.189858, -48.206308], [-7.189957, -48.205943], [-7.189198, -48.205703], [-7.188235, -48.208941]];
 const TRACADO_VOLTA = [[-7.188235, -48.208941], [-7.187788, -48.210434], [-7.190303, -48.213582], [-7.190019, -48.214319], [-7.187952, -48.216245], [-7.193116, -48.234056], [-7.19281, -48.23501], [-7.199315, -48.23777], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.232268, -48.252508], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-15';
 const ROTULO_ROTA = "TVA-6H37 - Motorista 726";
 const NUMERO_MOTORISTA = "726";
+const ROTA_ID = "RT001008";
+const VEICULO_ORIGINAL = "TVA-6H37";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "726";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>

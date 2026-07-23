@@ -24,6 +24,7 @@ header .sub { font-size: 0.72rem; opacity: 0.75; margin-top: 2px; }
 .filtro-data select.compacta { flex: 0 1 100px; min-width: 90px; }
 .filtro-data a { font-size: 0.8rem; color: var(--azul); text-decoration: none; white-space: nowrap; }
 .aviso-linha-reta { background: #fff3cd; color: #664d03; font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid #ffe69c; }
+.aviso-ajuste { background: var(--azul-claro); color: var(--azul); font-size: 0.75rem; padding: 6px 16px; border-bottom: 1px solid var(--borda); }
 .resumo { font-size: 0.72rem; background: var(--azul-claro); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 10px 12px; border-radius: 8px; margin-top: 4px; }
 .resumo > div { display: flex; flex-direction: column; }
 .resumo span { color: #555; }
@@ -88,6 +89,25 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 .admin-topo { display: flex; gap: 8px; padding: 10px; flex-wrap: wrap; }
 .admin-topo button { padding: 10px 14px; border-radius: 6px; border: none; background: var(--azul); color: #fff; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
 .admin-msg { text-align: center; font-size: 0.8rem; padding: 8px; min-height: 1.2em; }
+.secao-titulo { font-size: 1rem; margin: 18px 12px 6px 12px; color: var(--azul); }
+.ajuste-rota { background: #fff; border: 1px solid var(--borda); border-radius: 8px; margin: 0 10px 10px 10px; padding: 10px 12px; }
+.ajuste-rota summary { font-weight: bold; cursor: pointer; }
+.ajuste-rota summary small { font-weight: normal; color: #666; }
+.ajuste-campos { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ajuste-campo { display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; flex: 1; min-width: 160px; }
+.ajuste-campo select, .ajuste-campo input[type=text] { padding: 8px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.9rem; }
+.ajuste-paradas { max-height: 320px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 6px; margin-bottom: 10px; }
+.ajuste-parada { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.78rem; border-bottom: 1px solid #f0f0f0; }
+.ajuste-parada:last-child { border-bottom: none; }
+.ajuste-parada .ap-nome { flex: 1; }
+.ajuste-parada .ap-pos { width: 52px; padding: 5px; border-radius: 5px; border: 1px solid var(--borda); text-align: center; }
+.ajuste-parada.ap-excluida { opacity: 0.5; text-decoration: line-through; }
+.ajuste-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.ajuste-botoes button { padding: 8px 12px; border-radius: 6px; border: none; font-size: 0.78rem; font-weight: bold; cursor: pointer; }
+.ajuste-botoes .btn-salvar { background: var(--azul); color: #fff; }
+.ajuste-botoes .btn-limpar { background: #fff; border: 1.5px solid #c00000 !important; color: #c00000; }
+.ajuste-status { font-size: 0.75rem; margin-top: 6px; min-height: 1.1em; }
+.tag-ajustada { display: inline-block; background: var(--azul); color: #fff; font-size: 0.62rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -95,9 +115,9 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>RMB-6G43 - Motorista 730</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 22/07/2026 19:09</div>
+  <div class="sub">Atualizado em 22/07/2026 22:22</div>
 </header>
-<div id="mapa"></div>
+<div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
   <ol class="paradas" id="listaParadas"></ol>
   <div class="resumo">
@@ -114,13 +134,15 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "01120011", "cliente": "ACOUGUE E ADEG AMIGO", "endereco": "RUA PEDRO MOREIRA LI S/N -01433CENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.772233, "lon": -48.294152, "dist_anterior_km": 70.1617, "dist_proxima_km": 0.4919}, {"seq": 2, "codigo": "01120006", "cliente": "CHAPOLAS", "endereco": "RUA CESAR B NEPOMUCE S/N -01428CENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.768796, "lon": -48.294078, "dist_anterior_km": 0.4919, "dist_proxima_km": 0.5478999999999999}, {"seq": 3, "codigo": "01120032", "cliente": "CONVENIENCIA WHATTS", "endereco": "AV CONTORNO BR420 S/NCENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.764534, "lon": -48.294321, "dist_anterior_km": 0.5478999999999999, "dist_proxima_km": 42.8031}, {"seq": 4, "codigo": "01150202", "cliente": "RANCHO BOUGAVILLE", "endereco": "RU1 CHACARA BODOCAR KM 09 FRENE PONTE S/NZONA RURALXAMBIOATO - ZONA RURAL - XAMBIOA/TO - CEP 77880000", "lat": -6.479778, "lon": -48.490532, "dist_anterior_km": 42.8031, "dist_proxima_km": 5.258}, {"seq": 5, "codigo": "01150234", "cliente": "BAR DO CEARA      02", "endereco": "ROD BR 153 S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77860000", "lat": -6.445735, "lon": -48.516543, "dist_anterior_km": 5.258, "dist_proxima_km": 3.8358000000000003}, {"seq": 6, "codigo": "01150173", "cliente": "BAR SORRISO NOITE", "endereco": "RU1 RUA NOSSA SENHORA APARECIDA, 277CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.422121, "lon": -48.534798, "dist_anterior_km": 3.8358000000000003, "dist_proxima_km": 0.178}, {"seq": 7, "codigo": "01150092", "cliente": "ADEGA DO MIVANILSON", "endereco": "RUA 10 S/N -01993LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.420886, "lon": -48.535207, "dist_anterior_km": 0.178, "dist_proxima_km": 0.204}, {"seq": 8, "codigo": "01150203", "cliente": "MERCEARIA CENTRAL", "endereco": "RU1 RUA 03, 260LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.42056, "lon": -48.536668, "dist_anterior_km": 0.204, "dist_proxima_km": 0.1512}, {"seq": 9, "codigo": "01150087", "cliente": "ENCONTRO DOS AMIGO01", "endereco": "RUA DOIS S/N -01988LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.421008, "lon": -48.537569, "dist_anterior_km": 0.1512, "dist_proxima_km": 0.2331}, {"seq": 10, "codigo": "01150021", "cliente": "MERCE VILA OPERARIA", "endereco": "RUA 05, 42 -01922VILA OPERARIOXAMBIOATO - VILA OPERARIO - XAMBIOA/TO - CEP 77880000", "lat": -6.419453, "lon": -48.53782, "dist_anterior_km": 0.2331, "dist_proxima_km": 0.2104}, {"seq": 11, "codigo": "01150212", "cliente": "MERCIARIA E ADEGA AD", "endereco": "RU1 R01, 132LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.419034, "lon": -48.536858, "dist_anterior_km": 0.2104, "dist_proxima_km": 0.2763}, {"seq": 12, "codigo": "01150053", "cliente": "BAR DO GANBANHA", "endereco": "AV VILA OPERARIA S/N -01954CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.418255, "lon": -48.538826, "dist_anterior_km": 0.2763, "dist_proxima_km": 0.5712999999999999}, {"seq": 13, "codigo": "01150235", "cliente": "CASA DE CARNE ARAGUA", "endereco": "RU1 01 QD RB OPERARIA S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.41703, "lon": -48.536921, "dist_anterior_km": 0.5712999999999999, "dist_proxima_km": 0.0185}, {"seq": 14, "codigo": "01150218", "cliente": "BAR V8", "endereco": "RU1 ANTONIO MARANHAO, 954SETOR BAIXA FRIAXAMBIOATO - SETOR BAIXA FRIA - XAMBIOA/TO - CEP 77880000", "lat": -6.41718, "lon": -48.536849, "dist_anterior_km": 0.0185, "dist_proxima_km": 0.95}, {"seq": 15, "codigo": "01150056", "cliente": "BAR DA JOSENI", "endereco": "RUA ANTONIO MARANHAO S/N -01957CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.417868, "lon": -48.536228, "dist_anterior_km": 0.95, "dist_proxima_km": 0.143}, {"seq": 16, "codigo": "01150177", "cliente": "MERCADINHO UNIAO", "endereco": "RU1 ANTONIO MARANHAO, 911CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.416729, "lon": -48.536839, "dist_anterior_km": 0.143, "dist_proxima_km": 0.9117999999999999}, {"seq": 17, "codigo": "01150100", "cliente": "HOTEL RIO ARAGUAIA", "endereco": "RUA RUI BARBOSA, 42 -01999CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409475, "lon": -48.539353, "dist_anterior_km": 0.9117999999999999, "dist_proxima_km": 0.0373}, {"seq": 18, "codigo": "01150094", "cliente": "ADEGA E SUP MOREIRA", "endereco": "AV ARAGUAIA, 60CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409177, "lon": -48.539518, "dist_anterior_km": 0.0373, "dist_proxima_km": 0.0338}, {"seq": 19, "codigo": "01150250", "cliente": "BAR DO BAUDE", "endereco": "RU1 AV ARAGUAIA SN QUIOSQUE S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.408979, "lon": -48.539316, "dist_anterior_km": 0.0338, "dist_proxima_km": 0.1443}, {"seq": 20, "codigo": "01150208", "cliente": "ESQUINA DA CERVEJA", "endereco": "RU1 13 DE MAIO, 242CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.40853, "lon": -48.53809, "dist_anterior_km": 0.1443, "dist_proxima_km": 0.0402}, {"seq": 21, "codigo": "01150174", "cliente": "REST DA GLAUDINEIA", "endereco": "AV ARAGUAIA, 2CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 78800000", "lat": -6.408335, "lon": -48.537774, "dist_anterior_km": 0.0402, "dist_proxima_km": 0.30510000000000004}, {"seq": 22, "codigo": "01150054", "cliente": "PEIXARIA DO EDIMUNDO", "endereco": "AV ARAGUAIA. 588 S/N -01955CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.407198, "lon": -48.535273, "dist_anterior_km": 0.30510000000000004, "dist_proxima_km": 0.1161}, {"seq": 23, "codigo": "01150125", "cliente": "REST PEIX DA PRETA", "endereco": "AV ARAGUIA, 708 -02024CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.406813, "lon": -48.534304, "dist_anterior_km": 0.1161, "dist_proxima_km": 0.3205}, {"seq": 24, "codigo": "01150068", "cliente": "BAR DO DORIVAL", "endereco": "RUA JOAQUIM VITORINO, 40 -01969CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.408618, "lon": -48.534046, "dist_anterior_km": 0.3205, "dist_proxima_km": 0.15969999999999998}, {"seq": 25, "codigo": "01150001", "cliente": "MERCADINHO ALVES", "endereco": "RUA SAO JOSE, 71 -01902CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409269, "lon": -48.535058, "dist_anterior_km": 0.15969999999999998, "dist_proxima_km": 0.22080000000000002}, {"seq": 26, "codigo": "01150217", "cliente": "ADEGA DA ONCA     01", "endereco": "RU1 PRESIDENTE JUSCELINO K, 418CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.410783, "lon": -48.534924, "dist_anterior_km": 0.22080000000000002, "dist_proxima_km": 0.2702}, {"seq": 27, "codigo": "01150006", "cliente": "MER ACOUGUE CARVALHO", "endereco": "RUA PEPINO LAPOLIO S/N -01907CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.411992, "lon": -48.533012, "dist_anterior_km": 0.2702, "dist_proxima_km": 0.2282}, {"seq": 28, "codigo": "01150005", "cliente": "ACOUGUE MENOR PRECO", "endereco": "AV B 48 S/N -01906LESTEXAMBIOATO - LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.412988, "lon": -48.53168, "dist_anterior_km": 0.2282, "dist_proxima_km": 0.4249}, {"seq": 29, "codigo": "01150114", "cliente": "MINI MER ACOU ALTO B", "endereco": "RUA 3, 1210 -02013ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.41402, "lon": -48.529081, "dist_anterior_km": 0.4249, "dist_proxima_km": 0.2024}, {"seq": 30, "codigo": "01150172", "cliente": "BAR BEM GELADO", "endereco": "AV X STR LESTE, 1008SETOR LESTEXAMBIOATO - SETOR LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.413881, "lon": -48.527457, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.1235}, {"seq": 31, "codigo": "01150231", "cliente": "BUTECO DA DANY", "endereco": "RU1 01 QD B S/NVILA OPERARIOXAMBIOATO - VILA OPERARIO - XAMBIOA/TO - CEP 77880000", "lat": -6.41278, "lon": -48.527696, "dist_anterior_km": 0.1235, "dist_proxima_km": 0.214}, {"seq": 32, "codigo": "01150037", "cliente": "BAR DO ANTONIO 06", "endereco": "AV A. 382 S/N -01938LESTEXAMBIOATO - LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.411339, "lon": -48.528526, "dist_anterior_km": 0.214, "dist_proxima_km": 0.49060000000000004}, {"seq": 33, "codigo": "01150211", "cliente": "ADEGA DA NAIR", "endereco": "AV AVENIDA H, 841SETOR LESTEXAMBIOATO - SETOR LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.409193, "lon": -48.531007, "dist_anterior_km": 0.49060000000000004, "dist_proxima_km": 0.1375}, {"seq": 34, "codigo": "01150233", "cliente": "XAMBIOA COM BER E RE", "endereco": "RUI ANTONIO MONTEIRO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 78800000", "lat": -6.409988, "lon": -48.531591, "dist_anterior_km": 0.1375, "dist_proxima_km": 0.355}, {"seq": 35, "codigo": "01150117", "cliente": "BRANCA DO BOLO", "endereco": "RUA PRUDENTE DE MORA S/N -02016CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.407701, "lon": -48.531399, "dist_anterior_km": 0.355, "dist_proxima_km": 0.162}, {"seq": 36, "codigo": "01150207", "cliente": "MINE BOX 3 IRMAOS", "endereco": "RU1 SAO JOSE, 693BAIRRO SAO JOSEXAMBIOATO - BAIRRO SAO JOSE - XAMBIOA/TO - CEP 77880000", "lat": -6.407041, "lon": -48.530088, "dist_anterior_km": 0.162, "dist_proxima_km": 0.2384}, {"seq": 37, "codigo": "01150030", "cliente": "MERCADINHO BOA OPCAO", "endereco": "RUA DARCY MARINHO 2 S/N -01931BAIRRO SAO JOSEXAMBIOATO - BAIRRO SAO JOSE - XAMBIOA/TO - CEP 77880000", "lat": -6.405795, "lon": -48.528935, "dist_anterior_km": 0.2384, "dist_proxima_km": 0.25939999999999996}, {"seq": 38, "codigo": "01150244", "cliente": "POUSADA POR SO SOL", "endereco": "RU1 AV ARAGUAIA S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.404101, "lon": -48.52974, "dist_anterior_km": 0.25939999999999996, "dist_proxima_km": 1.2732999999999999}, {"seq": 39, "codigo": "01150220", "cliente": "CONVENIENCIA SOARES", "endereco": "RUA RUA 7 DE SETEMBRO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409842, "lon": -48.538673, "dist_anterior_km": 1.2732999999999999, "dist_proxima_km": 0.5667000000000001}, {"seq": 40, "codigo": "01150249", "cliente": "ROTA DE AMIGOS", "endereco": "RU1 XAMBIOA, 480CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.410848, "lon": -48.542875, "dist_anterior_km": 0.5667000000000001, "dist_proxima_km": 0.0845}, {"seq": 41, "codigo": "01150140", "cliente": "BAR PORTO DA BALSA", "endereco": "RU1 DA ILHA, 3CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.41061, "lon": -48.543228, "dist_anterior_km": 0.0845, "dist_proxima_km": 2.1955}, {"seq": 42, "codigo": "01150009", "cliente": "COM SANTOS", "endereco": "AV JANDIR MALINSQUE S/N -01910CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.417286, "lon": -48.531464, "dist_anterior_km": 2.1955, "dist_proxima_km": 0.2174}, {"seq": 43, "codigo": "01150020", "cliente": "MERCE E ADEGA BRASIL", "endereco": "RUA 02 703 S/N -01921ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.417323, "lon": -48.529703, "dist_anterior_km": 0.2174, "dist_proxima_km": 0.0891}, {"seq": 44, "codigo": "01150192", "cliente": "XAMBSBOOKER BAR D7", "endereco": "RU1 RUA DOIS S/NALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.416526, "lon": -48.529832, "dist_anterior_km": 0.0891, "dist_proxima_km": 0.1256}, {"seq": 45, "codigo": "01150055", "cliente": "BAR DA ZEZE 01", "endereco": "RUA 02, 699 -01956ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.415381, "lon": -48.529748, "dist_anterior_km": 0.1256, "dist_proxima_km": 0.5248999999999999}, {"seq": 46, "codigo": "01150201", "cliente": "BAR DA BAIANA", "endereco": "RU1 01, 7VILA OTACILIO CARDOSXAMBIOATO - VILA OTACILIO CARDOS - XAMBIOA/TO - CEP 77880000", "lat": -6.414309, "lon": -48.525646, "dist_anterior_km": 0.5248999999999999, "dist_proxima_km": 0.0178}, {"seq": 47, "codigo": "01150083", "cliente": "BAR DA FELICIDADE 01", "endereco": "RUA 01 8 S/N -01984CARDOSOXAMBIOATO - CARDOSO - XAMBIOA/TO - CEP 77880000", "lat": -6.414164, "lon": -48.525523, "dist_anterior_km": 0.0178, "dist_proxima_km": 0.6664}, {"seq": 48, "codigo": "01150213", "cliente": "CLUB DOS AMIGOS", "endereco": "RU1 POVOADO MANCHAO DO MEO BALNEARIO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.416934, "lon": -48.522802, "dist_anterior_km": 0.6664, "dist_proxima_km": 4.6628}, {"seq": 49, "codigo": "01150128", "cliente": "BAR DAS PULGAS", "endereco": "RU1 XAMBIOA S/NRURALXAMBIOATO - RURAL - XAMBIOA/TO - CEP 77880000", "lat": -6.444435, "lon": -48.539146, "dist_anterior_km": 4.6628, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01120011", "pedido": "0146", "cliente": "ACOUGUE E ADEG AMIGO", "endereco": "RUA PEDRO MOREIRA LI S/N -01433CENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.772233, "lon": -48.294152, "dist_anterior_km": 70.1617, "dist_proxima_km": 0.4919}, {"seq": 2, "codigo": "01120006", "pedido": "0222", "cliente": "CHAPOLAS", "endereco": "RUA CESAR B NEPOMUCE S/N -01428CENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.768796, "lon": -48.294078, "dist_anterior_km": 0.4919, "dist_proxima_km": 0.5478999999999999}, {"seq": 3, "codigo": "01120032", "pedido": "0225", "cliente": "CONVENIENCIA WHATTS", "endereco": "AV CONTORNO BR420 S/NCENTROPIRAQUETO - CENTRO - PIRAQUE/TO - CEP 77888000", "lat": -6.764534, "lon": -48.294321, "dist_anterior_km": 0.5478999999999999, "dist_proxima_km": 42.8031}, {"seq": 4, "codigo": "01150202", "pedido": "0282", "cliente": "RANCHO BOUGAVILLE", "endereco": "RU1 CHACARA BODOCAR KM 09 FRENE PONTE S/NZONA RURALXAMBIOATO - ZONA RURAL - XAMBIOA/TO - CEP 77880000", "lat": -6.479778, "lon": -48.490532, "dist_anterior_km": 42.8031, "dist_proxima_km": 5.258}, {"seq": 5, "codigo": "01150234", "pedido": "0280", "cliente": "BAR DO CEARA      02", "endereco": "ROD BR 153 S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77860000", "lat": -6.445735, "lon": -48.516543, "dist_anterior_km": 5.258, "dist_proxima_km": 3.8358000000000003}, {"seq": 6, "codigo": "01150173", "pedido": "0284", "cliente": "BAR SORRISO NOITE", "endereco": "RU1 RUA NOSSA SENHORA APARECIDA, 277CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.422121, "lon": -48.534798, "dist_anterior_km": 3.8358000000000003, "dist_proxima_km": 0.178}, {"seq": 7, "codigo": "01150092", "pedido": "0286", "cliente": "ADEGA DO MIVANILSON", "endereco": "RUA 10 S/N -01993LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.420886, "lon": -48.535207, "dist_anterior_km": 0.178, "dist_proxima_km": 0.204}, {"seq": 8, "codigo": "01150203", "pedido": "0312", "cliente": "MERCEARIA CENTRAL", "endereco": "RU1 RUA 03, 260LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.42056, "lon": -48.536668, "dist_anterior_km": 0.204, "dist_proxima_km": 0.1512}, {"seq": 9, "codigo": "01150087", "pedido": "0287", "cliente": "ENCONTRO DOS AMIGO01", "endereco": "RUA DOIS S/N -01988LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.421008, "lon": -48.537569, "dist_anterior_km": 0.1512, "dist_proxima_km": 0.2331}, {"seq": 10, "codigo": "01150021", "pedido": "0283", "cliente": "MERCE VILA OPERARIA", "endereco": "RUA 05, 42 -01922VILA OPERARIOXAMBIOATO - VILA OPERARIO - XAMBIOA/TO - CEP 77880000", "lat": -6.419453, "lon": -48.53782, "dist_anterior_km": 0.2331, "dist_proxima_km": 0.2104}, {"seq": 11, "codigo": "01150212", "pedido": "0307", "cliente": "MERCIARIA E ADEGA AD", "endereco": "RU1 R01, 132LOTEAMENTO NOVOXAMBIOATO - LOTEAMENTO NOVO - XAMBIOA/TO - CEP 77880000", "lat": -6.419034, "lon": -48.536858, "dist_anterior_km": 0.2104, "dist_proxima_km": 0.2763}, {"seq": 12, "codigo": "01150053", "pedido": "0288", "cliente": "BAR DO GANBANHA", "endereco": "AV VILA OPERARIA S/N -01954CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.418255, "lon": -48.538826, "dist_anterior_km": 0.2763, "dist_proxima_km": 0.5712999999999999}, {"seq": 13, "codigo": "01150235", "pedido": "0319", "cliente": "CASA DE CARNE ARAGUA", "endereco": "RU1 01 QD RB OPERARIA S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.41703, "lon": -48.536921, "dist_anterior_km": 0.5712999999999999, "dist_proxima_km": 0.0185}, {"seq": 14, "codigo": "01150218", "pedido": "0285", "cliente": "BAR V8", "endereco": "RU1 ANTONIO MARANHAO, 954SETOR BAIXA FRIAXAMBIOATO - SETOR BAIXA FRIA - XAMBIOA/TO - CEP 77880000", "lat": -6.41718, "lon": -48.536849, "dist_anterior_km": 0.0185, "dist_proxima_km": 0.95}, {"seq": 15, "codigo": "01150056", "pedido": "0281", "cliente": "BAR DA JOSENI", "endereco": "RUA ANTONIO MARANHAO S/N -01957CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.417868, "lon": -48.536228, "dist_anterior_km": 0.95, "dist_proxima_km": 0.143}, {"seq": 16, "codigo": "01150177", "pedido": "0279", "cliente": "MERCADINHO UNIAO", "endereco": "RU1 ANTONIO MARANHAO, 911CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.416729, "lon": -48.536839, "dist_anterior_km": 0.143, "dist_proxima_km": 0.9117999999999999}, {"seq": 17, "codigo": "01150100", "pedido": "0309", "cliente": "HOTEL RIO ARAGUAIA", "endereco": "RUA RUI BARBOSA, 42 -01999CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409475, "lon": -48.539353, "dist_anterior_km": 0.9117999999999999, "dist_proxima_km": 0.0373}, {"seq": 18, "codigo": "01150094", "pedido": "0316", "cliente": "ADEGA E SUP MOREIRA", "endereco": "AV ARAGUAIA, 60CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409177, "lon": -48.539518, "dist_anterior_km": 0.0373, "dist_proxima_km": 0.0338}, {"seq": 19, "codigo": "01150250", "pedido": "0320", "cliente": "BAR DO BAUDE", "endereco": "RU1 AV ARAGUAIA SN QUIOSQUE S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.408979, "lon": -48.539316, "dist_anterior_km": 0.0338, "dist_proxima_km": 0.1443}, {"seq": 20, "codigo": "01150208", "pedido": "0318", "cliente": "ESQUINA DA CERVEJA", "endereco": "RU1 13 DE MAIO, 242CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.40853, "lon": -48.53809, "dist_anterior_km": 0.1443, "dist_proxima_km": 0.0402}, {"seq": 21, "codigo": "01150174", "pedido": "0321", "cliente": "REST DA GLAUDINEIA", "endereco": "AV ARAGUAIA, 2CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 78800000", "lat": -6.408335, "lon": -48.537774, "dist_anterior_km": 0.0402, "dist_proxima_km": 0.30510000000000004}, {"seq": 22, "codigo": "01150054", "pedido": "0129", "cliente": "PEIXARIA DO EDIMUNDO", "endereco": "AV ARAGUAIA. 588 S/N -01955CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.407198, "lon": -48.535273, "dist_anterior_km": 0.30510000000000004, "dist_proxima_km": 0.1161}, {"seq": 23, "codigo": "01150125", "pedido": "0306", "cliente": "REST PEIX DA PRETA", "endereco": "AV ARAGUIA, 708 -02024CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.406813, "lon": -48.534304, "dist_anterior_km": 0.1161, "dist_proxima_km": 0.3205}, {"seq": 24, "codigo": "01150068", "pedido": "0314", "cliente": "BAR DO DORIVAL", "endereco": "RUA JOAQUIM VITORINO, 40 -01969CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.408618, "lon": -48.534046, "dist_anterior_km": 0.3205, "dist_proxima_km": 0.15969999999999998}, {"seq": 25, "codigo": "01150001", "pedido": "0118", "cliente": "MERCADINHO ALVES", "endereco": "RUA SAO JOSE, 71 -01902CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409269, "lon": -48.535058, "dist_anterior_km": 0.15969999999999998, "dist_proxima_km": 0.22080000000000002}, {"seq": 26, "codigo": "01150217", "pedido": "0315", "cliente": "ADEGA DA ONCA     01", "endereco": "RU1 PRESIDENTE JUSCELINO K, 418CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.410783, "lon": -48.534924, "dist_anterior_km": 0.22080000000000002, "dist_proxima_km": 0.2702}, {"seq": 27, "codigo": "01150006", "pedido": "0317", "cliente": "MER ACOUGUE CARVALHO", "endereco": "RUA PEPINO LAPOLIO S/N -01907CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.411992, "lon": -48.533012, "dist_anterior_km": 0.2702, "dist_proxima_km": 0.2282}, {"seq": 28, "codigo": "01150005", "pedido": "0289", "cliente": "ACOUGUE MENOR PRECO", "endereco": "AV B 48 S/N -01906LESTEXAMBIOATO - LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.412988, "lon": -48.53168, "dist_anterior_km": 0.2282, "dist_proxima_km": 0.4249}, {"seq": 29, "codigo": "01150114", "pedido": "0299", "cliente": "MINI MER ACOU ALTO B", "endereco": "RUA 3, 1210 -02013ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.41402, "lon": -48.529081, "dist_anterior_km": 0.4249, "dist_proxima_km": 0.2024}, {"seq": 30, "codigo": "01150172", "pedido": "0296", "cliente": "BAR BEM GELADO", "endereco": "AV X STR LESTE, 1008SETOR LESTEXAMBIOATO - SETOR LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.413881, "lon": -48.527457, "dist_anterior_km": 0.2024, "dist_proxima_km": 0.1235}, {"seq": 31, "codigo": "01150231", "pedido": "0278", "cliente": "BUTECO DA DANY", "endereco": "RU1 01 QD B S/NVILA OPERARIOXAMBIOATO - VILA OPERARIO - XAMBIOA/TO - CEP 77880000", "lat": -6.41278, "lon": -48.527696, "dist_anterior_km": 0.1235, "dist_proxima_km": 0.214}, {"seq": 32, "codigo": "01150037", "pedido": "0290", "cliente": "BAR DO ANTONIO 06", "endereco": "AV A. 382 S/N -01938LESTEXAMBIOATO - LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.411339, "lon": -48.528526, "dist_anterior_km": 0.214, "dist_proxima_km": 0.49060000000000004}, {"seq": 33, "codigo": "01150211", "pedido": "0292", "cliente": "ADEGA DA NAIR", "endereco": "AV AVENIDA H, 841SETOR LESTEXAMBIOATO - SETOR LESTE - XAMBIOA/TO - CEP 77880000", "lat": -6.409193, "lon": -48.531007, "dist_anterior_km": 0.49060000000000004, "dist_proxima_km": 0.1375}, {"seq": 34, "codigo": "01150233", "pedido": "0298", "cliente": "XAMBIOA COM BER E RE", "endereco": "RUI ANTONIO MONTEIRO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 78800000", "lat": -6.409988, "lon": -48.531591, "dist_anterior_km": 0.1375, "dist_proxima_km": 0.355}, {"seq": 35, "codigo": "01150117", "pedido": "0300", "cliente": "BRANCA DO BOLO", "endereco": "RUA PRUDENTE DE MORA S/N -02016CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.407701, "lon": -48.531399, "dist_anterior_km": 0.355, "dist_proxima_km": 0.162}, {"seq": 36, "codigo": "01150207", "pedido": "0301", "cliente": "MINE BOX 3 IRMAOS", "endereco": "RU1 SAO JOSE, 693BAIRRO SAO JOSEXAMBIOATO - BAIRRO SAO JOSE - XAMBIOA/TO - CEP 77880000", "lat": -6.407041, "lon": -48.530088, "dist_anterior_km": 0.162, "dist_proxima_km": 0.2384}, {"seq": 37, "codigo": "01150030", "pedido": "0302", "cliente": "MERCADINHO BOA OPCAO", "endereco": "RUA DARCY MARINHO 2 S/N -01931BAIRRO SAO JOSEXAMBIOATO - BAIRRO SAO JOSE - XAMBIOA/TO - CEP 77880000", "lat": -6.405795, "lon": -48.528935, "dist_anterior_km": 0.2384, "dist_proxima_km": 0.25939999999999996}, {"seq": 38, "codigo": "01150244", "pedido": "0305", "cliente": "POUSADA POR SO SOL", "endereco": "RU1 AV ARAGUAIA S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.404101, "lon": -48.52974, "dist_anterior_km": 0.25939999999999996, "dist_proxima_km": 1.2732999999999999}, {"seq": 39, "codigo": "01150220", "pedido": "0313", "cliente": "CONVENIENCIA SOARES", "endereco": "RUA RUA 7 DE SETEMBRO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.409842, "lon": -48.538673, "dist_anterior_km": 1.2732999999999999, "dist_proxima_km": 0.5667000000000001}, {"seq": 40, "codigo": "01150249", "pedido": "0308", "cliente": "ROTA DE AMIGOS", "endereco": "RU1 XAMBIOA, 480CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.410848, "lon": -48.542875, "dist_anterior_km": 0.5667000000000001, "dist_proxima_km": 0.0845}, {"seq": 41, "codigo": "01150140", "pedido": "0095", "cliente": "BAR PORTO DA BALSA", "endereco": "RU1 DA ILHA, 3CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.41061, "lon": -48.543228, "dist_anterior_km": 0.0845, "dist_proxima_km": 2.1955}, {"seq": 42, "codigo": "01150009", "pedido": "0291", "cliente": "COM SANTOS", "endereco": "AV JANDIR MALINSQUE S/N -01910CENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.417286, "lon": -48.531464, "dist_anterior_km": 2.1955, "dist_proxima_km": 0.2174}, {"seq": 43, "codigo": "01150020", "pedido": "0303", "cliente": "MERCE E ADEGA BRASIL", "endereco": "RUA 02 703 S/N -01921ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.417323, "lon": -48.529703, "dist_anterior_km": 0.2174, "dist_proxima_km": 0.0891}, {"seq": 44, "codigo": "01150192", "pedido": "0297", "cliente": "XAMBSBOOKER BAR D7", "endereco": "RU1 RUA DOIS S/NALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.416526, "lon": -48.529832, "dist_anterior_km": 0.0891, "dist_proxima_km": 0.1256}, {"seq": 45, "codigo": "01150055", "pedido": "0304", "cliente": "BAR DA ZEZE 01", "endereco": "RUA 02, 699 -01956ALTO BONITOXAMBIOATO - ALTO BONITO - XAMBIOA/TO - CEP 77880000", "lat": -6.415381, "lon": -48.529748, "dist_anterior_km": 0.1256, "dist_proxima_km": 0.5248999999999999}, {"seq": 46, "codigo": "01150201", "pedido": "0293", "cliente": "BAR DA BAIANA", "endereco": "RU1 01, 7VILA OTACILIO CARDOSXAMBIOATO - VILA OTACILIO CARDOS - XAMBIOA/TO - CEP 77880000", "lat": -6.414309, "lon": -48.525646, "dist_anterior_km": 0.5248999999999999, "dist_proxima_km": 0.0178}, {"seq": 47, "codigo": "01150083", "pedido": "0294", "cliente": "BAR DA FELICIDADE 01", "endereco": "RUA 01 8 S/N -01984CARDOSOXAMBIOATO - CARDOSO - XAMBIOA/TO - CEP 77880000", "lat": -6.414164, "lon": -48.525523, "dist_anterior_km": 0.0178, "dist_proxima_km": 0.6664}, {"seq": 48, "codigo": "01150213", "pedido": "0295", "cliente": "CLUB DOS AMIGOS", "endereco": "RU1 POVOADO MANCHAO DO MEO BALNEARIO S/NCENTROXAMBIOATO - CENTRO - XAMBIOA/TO - CEP 77880000", "lat": -6.416934, "lon": -48.522802, "dist_anterior_km": 0.6664, "dist_proxima_km": 4.6628}, {"seq": 49, "codigo": "01150128", "pedido": "0310", "cliente": "BAR DAS PULGAS", "endereco": "RU1 XAMBIOA S/NRURALXAMBIOATO - RURAL - XAMBIOA/TO - CEP 77880000", "lat": -6.444435, "lon": -48.539146, "dist_anterior_km": 4.6628, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.189829, -48.23306], [-7.161878, -48.205528], [-7.130376, -48.19944], [-7.093243, -48.171055], [-7.068366, -48.119774], [-7.032281, -48.103509], [-7.000879, -48.097801], [-6.969174, -48.099727], [-6.947658, -48.085981], [-6.930565, -48.101318], [-6.91543, -48.128325], [-6.867664, -48.162582], [-6.857928, -48.203078], [-6.835793, -48.225271], [-6.821886, -48.263149], [-6.799519, -48.285422], [-6.772239, -48.29417], [-6.768788, -48.294054], [-6.76456, -48.294442], [-6.748628, -48.283209], [-6.7229, -48.282981], [-6.711024, -48.276957], [-6.593938, -48.37872], [-6.572134, -48.391998], [-6.561662, -48.409707], [-6.54476, -48.41891], [-6.518978, -48.444852], [-6.488437, -48.461774], [-6.480122, -48.4908], [-6.461991, -48.494754], [-6.44555, -48.516387], [-6.419925, -48.533773], [-6.44126, -48.539796], [-6.441009, -48.534547], [-6.441, -48.539815], [-6.422095, -48.534834], [-6.420842, -48.535153], [-6.420542, -48.536687], [-6.420973, -48.537614], [-6.419501, -48.537839], [-6.419075, -48.536806], [-6.418164, -48.538792], [-6.41697, -48.536811], [-6.417117, -48.536731], [-6.420342, -48.533615], [-6.417877, -48.536245], [-6.416743, -48.536866], [-6.409441, -48.539298], [-6.40915, -48.539468], [-6.408981, -48.539315], [-6.408459, -48.53812], [-6.408295, -48.537796], [-6.407087, -48.535318], [-6.406731, -48.534331], [-6.408614, -48.534033], [-6.409307, -48.53504], [-6.410754, -48.534921], [-6.411991, -48.533012], [-6.412962, -48.531688], [-6.414049, -48.529178], [-6.413789, -48.527475], [-6.412788, -48.527719], [-6.411341, -48.528525], [-6.409248, -48.530986], [-6.409971, -48.531544], [-6.407699, -48.5314], [-6.407094, -48.530066], [-6.405797, -48.528938], [-6.404019, -48.52978], [-6.409682, -48.538743], [-6.410838, -48.542882], [-6.410801, -48.543447], [-6.420399, -48.533957], [-6.417277, -48.531404], [-6.417321, -48.529685], [-6.41652, -48.529773], [-6.415386, -48.529784], [-6.414312, -48.525622], [-6.414153, -48.525599], [-6.416804, -48.522818], [-6.420043, -48.534039], [-6.444419, -48.539087]];
 const TRACADO_VOLTA = [[-6.444419, -48.539087], [-6.454647, -48.543319], [-6.456805, -48.55725], [-6.474009, -48.566499], [-6.478286, -48.574508], [-6.510582, -48.583567], [-6.554742, -48.608746], [-6.557124, -48.633047], [-6.5782, -48.645024], [-6.66192, -48.614396], [-6.718476, -48.614302], [-6.736132, -48.603935], [-6.769152, -48.541836], [-6.804737, -48.527955], [-6.812911, -48.529825], [-6.908781, -48.50285], [-6.922223, -48.478275], [-6.938539, -48.471296], [-6.940986, -48.459068], [-7.006728, -48.405422], [-7.149225, -48.366803], [-7.185202, -48.344128], [-7.209472, -48.299007], [-7.202474, -48.291069], [-7.192745, -48.235872], [-7.232451, -48.252836], [-7.22693, -48.250414]];
 const DATA_ISO = '2026-07-15';
 const ROTULO_ROTA = "RMB-6G43 - Motorista 730";
 const NUMERO_MOTORISTA = "730";
+const ROTA_ID = "RT001005";
+const VEICULO_ORIGINAL = "RMB-6G43";
 
 // Status de entrega marcado pelo motorista (Entregue / Devolucao / Voltar
 // depois-Fechado). Fica salvo em 2 lugares: localStorage (instantaneo,
@@ -129,6 +151,31 @@ const NUMERO_MOTORISTA = "730";
 // Escopado por dia (chave inclui DATA_ISO) para que a marcacao de hoje nao
 // apareca, por engano, numa rota de um dia futuro com o mesmo cliente.
 const CORES_STATUS = { '': '#1f4e78', entregue: '#1e7e34', devolucao: '#c00000', fechado: '#b8860b' };
+
+let paradasEfetivas = PARADAS;
+
+// Aplica um ajuste manual (feito pelo administrador) por cima da lista de
+// paradas original: oculta as removidas, reordena pela posicao escolhida
+// (codigo nao listado mantem a ordem relativa original, vai pro fim) e
+// renumera a sequencia de 1..N -- a numeracao mostrada ao motorista e' sempre
+// a "efetiva", nunca a original do PathFind quando ha ajuste.
+function aplicarAjustePartadas(paradas, ajuste) {
+  let lista = paradas.slice();
+  if (ajuste && ajuste.removidos && ajuste.removidos.length) {
+    const removidos = new Set(ajuste.removidos);
+    lista = lista.filter(p => !removidos.has(p.codigo));
+  }
+  if (ajuste && ajuste.ordem && ajuste.ordem.length) {
+    const posicao = new Map(ajuste.ordem.map((c, i) => [c, i]));
+    lista.sort((a, b) => {
+      const pa = posicao.has(a.codigo) ? posicao.get(a.codigo) : Infinity;
+      const pb = posicao.has(b.codigo) ? posicao.get(b.codigo) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return a.seq - b.seq;
+    });
+  }
+  return lista.map((p, i) => Object.assign({}, p, { seq: i + 1 }));
+}
 
 let db = null;
 try {
@@ -212,7 +259,7 @@ L.marker([ORIGEM.lat, ORIGEM.lon], { icon: iconeOrigem })
 
 const referencias = {};  // codigo -> { li, marker }, usado pra aplicar o status vindo do Firestore
 
-PARADAS.forEach(p => {
+paradasEfetivas.forEach(p => {
   const li = document.createElement('li');
   li.className = 'parada';
   const origemTxt = (p.seq === 1) ? 'saida' : 'parada anterior';
@@ -223,7 +270,7 @@ PARADAS.forEach(p => {
   li.innerHTML =
     '<div class="num">' + p.seq + '</div>' +
     '<div class="info">' +
-      '<div class="codigo">' + p.codigo + '</div>' +
+      '<div class="codigo">Pedido ' + parseInt(p.pedido, 10) + ' &middot; ' + p.codigo + '</div>' +
       '<div class="cliente">' + p.cliente + '</div>' +
       '<div class="endereco">' + p.endereco + '</div>' +
       '<div class="meta">' + chegadaTxt + ' &middot; ' + proximaTxt + '</div>' +
@@ -296,38 +343,70 @@ if (pontos.length) {
 // evita que quem receba o link por engano veja dados do cliente. A senha
 // fica guardada no Firestore (colecao "motoristas"),
 // nunca no codigo desta pagina.
-if (!NUMERO_MOTORISTA) {
-  iniciarPagina();  // rota sem motorista definido: nao da pra proteger, abre direto
-} else {
-  const chaveDesbloqueio = 'desbloqueado_motorista_' + NUMERO_MOTORISTA;
+// Antes de decidir a senha/rotulo, busca se ha algum ajuste manual salvo
+// pelo administrador pra essa rota+dia (troca de motorista/veiculo, ordem
+// ou paradas removidas). Se houver, ele manda: inclusive a senha exigida
+// passa a ser a do motorista definido no ajuste, nao a original do PathFind.
+function iniciarComAjuste(ajuste) {
+  paradasEfetivas = aplicarAjustePartadas(PARADAS, ajuste);
+  const numeroEfetivo = (ajuste && ajuste.motorista_numero) || NUMERO_MOTORISTA;
+  const placaEfetiva = (ajuste && ajuste.veiculo) || VEICULO_ORIGINAL;
+  if (ajuste) {
+    const rotuloEfetivo = numeroEfetivo
+      ? (placaEfetiva || 'Veiculo') + ' - Motorista ' + numeroEfetivo
+      : (placaEfetiva || 'Veiculo') + ' - Sem motorista definido';
+    document.title = rotuloEfetivo + ' - Rota de entrega';
+    const h1 = document.querySelector('header h1');
+    if (h1) h1.textContent = rotuloEfetivo;
+    const avisoEl = document.getElementById('avisoAjuste');
+    if (avisoEl) {
+      avisoEl.className = 'aviso-ajuste';
+      avisoEl.textContent = 'Esta rota foi ajustada manualmente pelo administrador.';
+    }
+  }
+
+  if (!numeroEfetivo) {
+    iniciarPagina();  // sem motorista definido (original nem ajustado): nao da pra proteger, abre direto
+    return;
+  }
+  const chaveDesbloqueio = 'desbloqueado_motorista_' + numeroEfetivo;
   if (localStorage.getItem(chaveDesbloqueio) === 'sim') {
     iniciarPagina();
-  } else {
-    document.body.classList.add('bloqueado');
-    const form = document.getElementById('formSenha');
-    const erroEl = document.getElementById('bloqueioErro');
-    form.addEventListener('submit', ev => {
-      ev.preventDefault();
-      if (!db) {
-        erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
-        return;
-      }
-      const senhaDigitada = document.getElementById('campoSenha').value;
-      erroEl.textContent = 'Verificando...';
-      db.collection('motoristas').doc(NUMERO_MOTORISTA).get().then(doc => {
-        if (doc.exists && doc.data().senha === senhaDigitada) {
-          localStorage.setItem(chaveDesbloqueio, 'sim');
-          document.body.classList.remove('bloqueado');
-          iniciarPagina();
-        } else {
-          erroEl.textContent = 'Senha incorreta.';
-        }
-      }).catch(err => {
-        erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
-        console.error(err);
-      });
-    });
+    return;
   }
+  const form = document.getElementById('formSenha');
+  if (!form) { iniciarPagina(); return; }
+  document.body.classList.add('bloqueado');
+  const erroEl = document.getElementById('bloqueioErro');
+  form.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (!db) {
+      erroEl.textContent = 'Sem conexao com o servidor de senhas. Confira sua internet e tente de novo.';
+      return;
+    }
+    const senhaDigitada = document.getElementById('campoSenha').value;
+    erroEl.textContent = 'Verificando...';
+    db.collection('motoristas').doc(numeroEfetivo).get().then(doc => {
+      if (doc.exists && doc.data().senha === senhaDigitada) {
+        localStorage.setItem(chaveDesbloqueio, 'sim');
+        document.body.classList.remove('bloqueado');
+        iniciarPagina();
+      } else {
+        erroEl.textContent = 'Senha incorreta.';
+      }
+    }).catch(err => {
+      erroEl.textContent = 'Erro ao verificar a senha. Confira sua internet.';
+      console.error(err);
+    });
+  });
+}
+
+if (db && ROTA_ID) {
+  db.collection('ajustes_rotas').doc(DATA_ISO + '_' + ROTA_ID).get()
+    .then(doc => iniciarComAjuste(doc.exists ? doc.data() : null))
+    .catch(err => { console.error('Falha ao buscar ajuste manual:', err); iniciarComAjuste(null); });
+} else {
+  iniciarComAjuste(null);
 }
 </script>
 </body>
