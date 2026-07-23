@@ -139,14 +139,25 @@ def parse_linha(linha: str, numero_linha: int = 0) -> Entrega | None:
     latitude = float(latlon_m.group(1))
     longitude = float(latlon_m.group(2))
 
-    # veiculo: primeiro token apos "RT......." e antes do bloco de datas
-    # duplicadas (AAAA-MM-DDAAAA-MM-DD). O formato de placa observado tem
-    # sempre 8 caracteres (ex: TVA-5A26); o restante colado ao token e a
-    # sequencia da parada no plano original do PathFind, no formato "1<N>"
-    # (um digito fixo + o numero da parada, ex: "115" = parada 15, "1"+"1"
-    # = parada 1). Confirmado batendo com o numero de paradas de varias
-    # rotas reais (sempre forma um intervalo 1..N sem buracos ou repeticao).
-    veic_m = re.search(r"(\S+?)\s+\d{4}-\d{2}-\d{2}\d{4}-\d{2}-\d{2}", linha[rota_m.end():])
+    # veiculo: token com formato de placa (3 letras + hifen + 4 alfanumericos,
+    # ex: TVA-5A26) colado a sequencia da parada no plano original do
+    # PathFind, no formato "1<N>" (um digito fixo + o numero da parada, ex:
+    # "115" = parada 15, "1"+"1" = parada 1). Confirmado batendo com o numero
+    # de paradas de varias rotas reais (sempre forma um intervalo 1..N sem
+    # buracos ou repeticao).
+    #
+    # Ancorado no FORMATO DA PLACA (nao mais em "primeiro token antes do
+    # bloco de datas"): o espacamento entre esse token e as datas que vem
+    # depois varia (arquivo de largura fixa, o preenchimento de espacos
+    # muda conforme o tamanho da sequencia colada), e algumas rotas (as de
+    # dia fixo/recorrente) trazem uma marca de dia da semana + codigo de
+    # rota (ex: "WED -UL-22") em vez das duas datas coladas de costume,
+    # antes da unica data que sobra. Sem esse ancoramento pela placa, o
+    # codigo do cliente saia errado (mesmo valor pra toda a rota), o que
+    # fazia a marcacao de entrega de todas as paradas ficar amarrada numa
+    # unica chave -- ver historico de bug de status compartilhado entre
+    # paradas.
+    veic_m = re.search(r"([A-Z]{3}-[A-Z0-9]{4}\d+)\s+.*?\d{4}-\d{2}-\d{2}(?:\d{4}-\d{2}-\d{2})?", linha[rota_m.end():])
     veiculo = veic_m.group(1)[:8] if veic_m else ""
     fim_datas = rota_m.end() + veic_m.end() if veic_m else rota_m.end()
 
