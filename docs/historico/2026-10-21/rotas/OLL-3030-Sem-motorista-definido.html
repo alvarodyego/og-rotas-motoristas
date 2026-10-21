@@ -130,7 +130,7 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <header>
   <h1>OLL-3030 - Sem motorista definido</h1>
   <div class="marca">Distribuidora OG de Bebidas &middot; Revendedor Autorizado Heineken</div>
-  <div class="sub">Atualizado em 21/10/2026 20:16</div>
+  <div class="sub">Atualizado em 21/10/2026 20:25</div>
 </header>
 <div id="avisoAjuste"></div><div id="mapa"></div>
 <main>
@@ -149,7 +149,7 @@ body.bloqueado > *:not(.bloqueio) { display: none !important; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-const PARADAS = [{"seq": 1, "codigo": "", "pedido": "0379", "cliente": "", "endereco": "AV SANTOS DUMONT, 1162LOT MANOEL GOMES DAARAGUAINATO - LOT MANOEL GOMES DA - ARAGUAINA/TO - CEP 77818010", "lat": -7.190972, "lon": -48.226331, "dist_anterior_km": 5.067, "dist_proxima_km": 3.7862}, {"seq": 2, "codigo": "", "pedido": "0085", "cliente": "", "endereco": "AL ARAGUAIA02, 142 -LOJA 130LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.206843, "lon": -48.218057, "dist_anterior_km": 3.7862, "dist_proxima_km": 0.8486}, {"seq": 3, "codigo": "", "pedido": "0158", "cliente": "", "endereco": "AV DAS MANSOES, 1876 -Q 19 L 7JARDIM PAULISTAARAGUAINATO - JARDIM PAULISTA - ARAGUAINA/TO - CEP 77809420", "lat": -7.211147, "lon": -48.214021, "dist_anterior_km": 0.8486, "dist_proxima_km": null}];
+const PARADAS = [{"seq": 1, "codigo": "01000759", "pedido": "0379", "cliente": "DIST BEBIDAS MARRA", "endereco": "AV SANTOS DUMONT, 1162LOT MANOEL GOMES DAARAGUAINATO - LOT MANOEL GOMES DA - ARAGUAINA/TO - CEP 77818010", "lat": -7.190972, "lon": -48.226331, "dist_anterior_km": 5.067, "dist_proxima_km": 3.7862}, {"seq": 2, "codigo": "01002921", "pedido": "0085", "cliente": "GIRA LAGO CENTER", "endereco": "AL ARAGUAIA02, 142 -LOJA 130LOTEAMENTO MANSOES DARAGUAINATO - LOTEAMENTO MANSOES D - ARAGUAINA/TO - CEP 77814680", "lat": -7.206843, "lon": -48.218057, "dist_anterior_km": 3.7862, "dist_proxima_km": 0.8486}, {"seq": 3, "codigo": "01000442", "pedido": "0158", "cliente": "AABB 1", "endereco": "AV DAS MANSOES, 1876 -Q 19 L 7JARDIM PAULISTAARAGUAINATO - JARDIM PAULISTA - ARAGUAINA/TO - CEP 77809420", "lat": -7.211147, "lon": -48.214021, "dist_anterior_km": 0.8486, "dist_proxima_km": null}];
 const ORIGEM = {"lat": -7.22722092594843, "lon": -48.24978544427654};
 const TRACADO_IDA = [[-7.22693, -48.250414], [-7.214238, -48.244759], [-7.193476, -48.234603], [-7.190941, -48.22634], [-7.189636, -48.221651], [-7.191504, -48.215414], [-7.195095, -48.214872], [-7.196228, -48.215077], [-7.19747, -48.215993], [-7.198546, -48.217759], [-7.201863, -48.221205], [-7.203052, -48.221786], [-7.203237, -48.220862], [-7.202704, -48.219378], [-7.207252, -48.218279], [-7.207085, -48.217937], [-7.206956, -48.217672], [-7.208455, -48.2164], [-7.20858, -48.215821], [-7.208023, -48.215594], [-7.208132, -48.214976], [-7.208944, -48.215285], [-7.211015, -48.21381]];
 const TRACADO_VOLTA = [[-7.211015, -48.21381], [-7.208766, -48.215095], [-7.21054, -48.216529], [-7.208397, -48.218899], [-7.207713, -48.220493], [-7.206303, -48.220869], [-7.204574, -48.220304], [-7.202813, -48.22084], [-7.204045, -48.225145], [-7.208136, -48.235081], [-7.207592, -48.239863], [-7.207057, -48.241057], [-7.206163, -48.240633], [-7.205925, -48.241098], [-7.228225, -48.251482], [-7.232451, -48.252836], [-7.232299, -48.252231], [-7.229477, -48.251564], [-7.22693, -48.250414]];
